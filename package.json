@@ -1,0 +1,57 @@
+{
+  "name": "meta-automation",
+  "version": "2.0.0",
+  "description": "AI product marketing automation for X, Threads, Facebook and Instagram.",
+  "main": "threads-agent.js",
+  "scripts": {
+    "content:setup": "node threads-agent.js setup",
+    "content:wizard": "node scripts/product-wizard.js",
+    "content:set-url": "node threads-agent.js set-url",
+    "content:start": "node threads-agent.js start",
+    "content:preview": "node threads-agent.js start --dry-run",
+    "content:status": "node threads-agent.js content-status",
+    "content:metrics": "node threads-agent.js content-status --refresh",
+    "content:engage": "node threads-agent.js content-engage",
+    "content:engage:preview": "node threads-agent.js content-engage --dry-run --once",
+    "content:learn": "node threads-agent.js learn",
+    "content:learn:status": "node threads-agent.js learn --status",
+    "content:learn:preview": "node threads-agent.js learn --dry-run",
+    "start": "node threads-agent.js start --engage",
+    "status": "node threads-agent.js status",
+    "test": "node --test tests/*.test.js",
+    "test:content": "node --test tests/antigravity-images.test.js tests/config-documents.test.js tests/config-management.test.js tests/content-engine.test.js tests/content-queue.test.js tests/content-tracker.test.js tests/continuous-learning.test.js tests/humanizer-rules.test.js tests/interval-schedule.test.js tests/platform-contract.test.js tests/product-engagement.test.js tests/rolling-media.test.js tests/target-account-analyzer.test.js tests/x-instagram-platform.test.js",
+    "test:content:browser": "node --test tests/content-metrics-browser.test.js tests/image-upload-browser.test.js",
+    "content:image:preview": "node scripts/preview-content-image.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sunmughan/meta-automation.git"
+  },
+  "keywords": [
+    "digital-product-selling",
+    "social-automation",
+    "content-automation",
+    "ai-agent",
+    "browser-automation",
+    "cdp",
+    "threads",
+    "product-marketing",
+    "gumroad",
+    "codeair"
+  ],
+  "author": "Sunmughan Swamy <contact@codeair.tech> (https://www.codeair.tech)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sunmughan/meta-automation/issues"
+  },
+  "homepage": "https://github.com/sunmughan/meta-automation#readme",
+  "type": "commonjs",
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "puppeteer-core": "^25.11.0",
+    "sharp": "^0.35.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Config — Selling Automation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg:         #08090d;
+  --bg2:        #0f1117;
+  --bg3:        #161921;
+  --border:     #1e2130;
+  --border2:    #2a2f45;
+  --accent:     #6d28d9;
+  --accent2:    #7c3aed;
+  --accent3:    #8b5cf6;
+  --glow:       rgba(109,40,217,0.35);
+  --green:      #10b981;
+  --red:        #ef4444;
+  --yellow:     #f59e0b;
+  --text:       #e2e8f0;
+  --text2:      #94a3b8;
+  --text3:      #64748b;
+  --radius:     12px;
+  --radius-sm:  8px;
+  --trans:      all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+#sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: #fff;
+  box-shadow: 0 0 20px var(--glow);
+}
+.sidebar-logo .logo-badge .icon { font-size: 16px; }
+.sidebar-subtitle {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.nav-section {
+  padding: 16px 12px 4px;
+}
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 8px;
+  margin-bottom: 6px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: var(--trans);
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+.nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(109,40,217,0.18), rgba(79,70,229,0.1));
+  color: var(--accent3);
+  border-color: rgba(109,40,217,0.3);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 12px;
+  border-top: 1px solid var(--border);
+}
+.status-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Main ───────────────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────────── */
+#topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(8,9,13,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 60px;
+}
+.topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.topbar-breadcrumb { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+  border: none;
+  font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #fff;
+  box-shadow: 0 0 20px var(--glow);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px var(--glow); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text2);
+  border: 1px solid var(--border2);
+}
+.btn-secondary:hover { background: var(--border2); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+/* ── Content area ───────────────────────────────────────────────── */
+#content {
+  flex: 1;
+  padding: 32px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Section panels ─────────────────────────────────────────────── */
+.section {
+  display: none;
+  animation: fadeIn 0.25s ease;
+}
+.section.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+  margin-bottom: 28px;
+}
+.section-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-header p {
+  margin-top: 6px;
+  color: var(--text2);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--border2); }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .ctag {
+  background: rgba(109,40,217,0.18);
+  color: var(--accent3);
+  border: 1px solid rgba(109,40,217,0.25);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ── Form elements ──────────────────────────────────────────────── */
+.field-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.field-group.single { grid-template-columns: 1fr; }
+.field-group.triple { grid-template-columns: 1fr 1fr 1fr; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+label .req { color: var(--accent3); margin-left: 2px; }
+label .hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text3);
+  margin-left: 6px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="url"],
+select,
+textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 10px 13px;
+  transition: var(--trans);
+  outline: none;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(109,40,217,0.15);
+  background: #12141c;
+}
+textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+textarea.code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  min-height: 260px;
+}
+select option { background: var(--bg3); }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
+.toggle-label { font-size: 13.5px; color: var(--text); }
+.toggle-desc { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border2);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle input:checked + .toggle-track { background: var(--accent); box-shadow: 0 0 12px var(--glow); }
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+
+/* ── Platform checkboxes ────────────────────────────────────────── */
+.platform-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+.platform-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border2);
+  cursor: pointer;
+  transition: var(--trans);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text2);
+  user-select: none;
+}
+.platform-chip:hover { border-color: var(--accent3); color: var(--text); }
+.platform-chip.selected {
+  border-color: var(--accent);
+  background: rgba(109,40,217,0.15);
+  color: var(--accent3);
+  box-shadow: 0 0 12px var(--glow);
+}
+.platform-chip input { display: none; }
+.platform-chip .chip-icon { font-size: 17px; }
+
+/* ── Tags / topics ──────────────────────────────────────────────── */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-height: 52px;
+  transition: border-color 0.2s;
+}
+.tags-container:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(109,40,217,0.15); }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(109,40,217,0.18);
+  border: 1px solid rgba(109,40,217,0.3);
+  color: var(--accent3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.tag-remove {
+  cursor: pointer;
+  color: var(--accent3);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.tag-remove:hover { opacity: 1; }
+.tag-input {
+  flex: 1;
+  min-width: 160px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 4px;
+}
+.tag-input::placeholder { color: var(--text3); }
+
+/* ── Times list ─────────────────────────────────────────────────── */
+.times-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+}
+.time-chip button {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  opacity: 0.7;
+}
+.time-chip button:hover { opacity: 1; }
+.time-add-row { display: flex; gap: 8px; margin-top: 8px; }
+.time-add-row input { max-width: 130px; }
+
+/* ── Toast ──────────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  max-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+  pointer-events: all;
+}
+.toast.success { background: #052e16; border: 1px solid #166534; color: #4ade80; }
+.toast.error   { background: #2d0a0a; border: 1px solid #7f1d1d; color: #f87171; }
+.toast.info    { background: #1e1b4b; border: 1px solid #3730a3; color: #a5b4fc; }
+@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes fadeOut { to { opacity:0; transform:translateX(20px); } }
+
+/* ── Loading overlay ────────────────────────────────────────────── */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: rgba(8,9,13,0.75);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+#loader.active { display: flex; }
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Divider ────────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ── Info banner ────────────────────────────────────────────────── */
+.info-banner {
+  background: rgba(109,40,217,0.08);
+  border: 1px solid rgba(109,40,217,0.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.info-banner .info-icon { font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+.warn-banner {
+  background: rgba(245,158,11,0.08);
+  border-color: rgba(245,158,11,0.2);
+  color: #fbbf24;
+}
+
+/* ── Save bar ───────────────────────────────────────────────────── */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(8,9,13,0.9);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.save-bar-left { font-size: 12.5px; color: var(--text3); }
+.save-bar-left strong { color: var(--text2); }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge"><span class="icon">⚡</span>Selling Config</div>
+    <div class="sidebar-subtitle">Product Automation</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">Identity</div>
+    <a class="nav-item active" data-section="seller" onclick="navigate('seller',this)">
+      <span class="nav-icon">👤</span> Seller Profile
+    </a>
+    <a class="nav-item" data-section="product" onclick="navigate('product',this)">
+      <span class="nav-icon">📦</span> Product Details
+    </a>
+    <a class="nav-item" data-section="copy" onclick="navigate('copy',this)">
+      <span class="nav-icon">✍️</span> Product Copy
+    </a>
+    <a class="nav-item" data-section="topics" onclick="navigate('topics',this)">
+      <span class="nav-icon">🎯</span> Key Topics
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">Campaign</div>
+    <a class="nav-item" data-section="strategy" onclick="navigate('strategy',this)">
+      <span class="nav-icon">🗺️</span> Strategy
+    </a>
+    <a class="nav-item" data-section="selling" onclick="navigate('selling',this)">
+      <span class="nav-icon">💰</span> Selling Rules
+    </a>
+    <a class="nav-item" data-section="schedule" onclick="navigate('schedule',this)">
+      <span class="nav-icon">🕐</span> Schedule
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">AI Settings</div>
+    <a class="nav-item" data-section="learning" onclick="navigate('learning',this)">
+      <span class="nav-icon">🧠</span> Learning
+    </a>
+    <a class="nav-item" data-section="writing" onclick="navigate('writing',this)">
+      <span class="nav-icon">🖋️</span> Writing & Voice
+    </a>
+    <a class="nav-item" data-section="media" onclick="navigate('media',this)">
+      <span class="nav-icon">🖼️</span> Post Images
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">Knowledge</div>
+    <a class="nav-item" data-section="voice" onclick="navigate('voice',this)">
+      <span class="nav-icon">🎤</span> Voice Examples
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div style="font-size:12px; color:var(--text3);">
+      <span class="status-dot"></span>GUI Server running
+    </div>
+    <div style="font-size:11px; color:var(--text3); margin-top:4px;">localhost:3131</div>
+  </div>
+</aside>
+
+<!-- ── Main ────────────────────────────────────────────────── -->
+<main id="main">
+  <header id="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Seller Profile</div>
+      <div class="topbar-breadcrumb" id="topbar-crumb">product.json → seller</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="loadAll()">↺ Reload</button>
+      <button class="btn btn-primary" onclick="saveCurrentSection()">💾 Save Changes</button>
+    </div>
+  </header>
+
+  <div id="content">
+
+    <!-- ═══════════════════════════════════ SELLER ═══ -->
+    <div class="section active" id="sec-seller">
+      <div class="section-header">
+        <h2>👤 Seller Profile</h2>
+        <p>Your public identity shown to followers. Affects how the AI writes replies and DMs on your behalf.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Basic Info <span class="ctag">product.json → seller</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="seller-name" placeholder="e.g. Hamza Idrishi" />
+          </div>
+          <div class="field">
+            <label>Default Username <span class="req">*</span> <span class="hint">fallback if no platform username set</span></label>
+            <input type="text" id="seller-username" placeholder="e.g. Hamza_build" />
+          </div>
+        </div>
+        <div class="field-group single">
+          <div class="field">
+            <label>Bio / Voice Style <span class="hint">how the AI describes you in replies</span></label>
+            <textarea id="seller-bio" rows="3" placeholder="e.g. I build automation tools that run your social media on autopilot. Direct. No fluff."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Platform Usernames <span class="ctag">seller.usernames</span></div>
+        <div class="info-banner">
+          <span class="info-icon">ℹ️</span>
+          These override the default username per platform. The system uses these to avoid replying to its own posts.
+        </div>
+        <div class="field-group">
+          <div class="field">
+            <label>🧵 Threads Username</label>
+            <input type="text" id="seller-threads" placeholder="e.g. hiii_firoj" />
+          </div>
+          <div class="field">
+            <label>📘 Facebook Username</label>
+            <input type="text" id="seller-facebook" placeholder="e.g. hiiifiroj" />
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field">
+            <label>✖️ X (Twitter) Username</label>
+            <input type="text" id="seller-x" placeholder="e.g. hiii_firoj" />
+          </div>
+          <div class="field">
+            <label>📸 Instagram Username</label>
+            <input type="text" id="seller-instagram" placeholder="e.g. hiii_firoj" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ PRODUCT ═══ -->
+    <div class="section" id="sec-product">
+      <div class="section-header">
+        <h2>📦 Product Details</h2>
+        <p>The product you are selling. The AI uses these facts in every post and reply — never invents anything beyond what's here.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Core Info <span class="ctag">product.json → product</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Product Name <span class="req">*</span></label>
+            <input type="text" id="product-name" placeholder="e.g. Scan My Disk — Windows Disk Space Analyzer" />
+          </div>
+          <div class="field">
+            <label>Product Type <span class="req">*</span></label>
+            <input type="text" id="product-type" placeholder="e.g. desktop app, ebook, SaaS, course" />
+          </div>
+        </div>
+        <div class="field-group triple">
+          <div class="field">
+            <label>Price <span class="req">*</span></label>
+            <input type="text" id="product-price" placeholder="e.g. $5" />
+          </div>
+          <div class="field">
+            <label>Platform Availability</label>
+            <input type="text" id="product-platform" placeholder="e.g. Windows · Mac coming soon" />
+          </div>
+          <div class="field">
+            <label>Sales URL <span class="req">*</span></label>
+            <input type="url" id="product-url" placeholder="https://yourproduct.com" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Description & Audience</div>
+        <div class="field-group single">
+          <div class="field">
+            <label>Product Description <span class="hint">full factual description used by AI for content</span></label>
+            <textarea id="product-description" rows="5" placeholder="Describe your product in detail — what it does, how it works, key features, pricing model..."></textarea>
+          </div>
+        </div>
+        <div class="field-group single">
+          <div class="field">
+            <label>Target Audience <span class="hint">who this is for — be specific</span></label>
+            <textarea id="product-audience" rows="4" placeholder="e.g. Windows users running low on disk space. Developers dealing with bloated node_modules or Docker images..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ COPY ═══ -->
+    <div class="section" id="sec-copy">
+      <div class="section-header">
+        <h2>✍️ Product Copy</h2>
+        <p>The full marketing copy for your product. The AI uses this as the primary reference when generating posts and replies. Be thorough — more context = better content.</p>
+      </div>
+      <div class="info-banner">
+        <span class="info-icon">💡</span>
+        This is <strong>product-copy.md</strong>. Include pain points, benefits, features, testimonials, objection responses, and any sales angles you want the AI to use.
+      </div>
+      <div class="card">
+        <div class="card-title">product-copy.md <span class="ctag">markdown</span></div>
+        <textarea id="copy-text" class="code" style="min-height:480px;" placeholder="# Product Copy&#10;&#10;## Pain Points&#10;- Your hard drive is full but you don't know why...&#10;&#10;## Solution&#10;..."></textarea>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ TOPICS ═══ -->
+    <div class="section" id="sec-topics">
+      <div class="section-header">
+        <h2>🎯 Key Topics</h2>
+        <p>Content topics the AI rotates through when generating posts. Each topic becomes a post hook. Add at least 5 for variety — more is better.</p>
+      </div>
+      <div class="info-banner">
+        <span class="info-icon">💡</span>
+        Type a topic and press <strong>Enter</strong> or <strong>Tab</strong> to add it. Click ✕ to remove.
+      </div>
+      <div class="card">
+        <div class="card-title">product.key_topics <span class="ctag">array</span></div>
+        <div class="tags-container" id="topics-container" onclick="document.getElementById('topic-input').focus()">
+          <input id="topic-input" class="tag-input" placeholder="Type a topic and press Enter…" />
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text3);" id="topics-count">0 topics added</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ STRATEGY ═══ -->
+    <div class="section" id="sec-strategy">
+      <div class="section-header">
+        <h2>🗺️ Strategy</h2>
+        <p>Controls which platforms to post on, how often to post, and how frequently to include a product mention.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Active Platforms <span class="ctag">strategy.platforms</span></div>
+        <div class="platform-grid" id="platforms-grid">
+          <label class="platform-chip" id="chip-threads">
+            <input type="checkbox" value="threads" onchange="togglePlatformChip(this)" />
+            <span class="chip-icon">🧵</span> Threads
+          </label>
+          <label class="platform-chip" id="chip-facebook">
+            <input type="checkbox" value="facebook" onchange="togglePlatformChip(this)" />
+            <span class="chip-icon">📘</span> Facebook
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Posting Frequency</div>
+        <div class="field-group triple">
+          <div class="field">
+            <label>Post Every (hours) <span class="req">*</span></label>
+            <input type="number" id="strategy-frequency" min="1" max="24" placeholder="1" />
+          </div>
+          <div class="field">
+            <label>Product Mention Ratio <span class="hint">e.g. 1 in 5 posts</span></label>
+            <input type="text" id="strategy-ratio" placeholder="1 in 5 posts" />
+          </div>
+          <div class="field">
+            <label>Value Posts Before Selling</label>
+            <input type="number" id="strategy-value-posts" min="0" placeholder="0" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ SELLING ═══ -->
+    <div class="section" id="sec-selling">
+      <div class="section-header">
+        <h2>💰 Selling Rules</h2>
+        <p>Per-platform thresholds that must be met before the system starts injecting product posts. Set both to 0 to sell immediately.</p>
+      </div>
+
+      <div class="info-banner warn-banner">
+        <span class="info-icon">⚡</span>
+        Setting both to <strong>0</strong> on a platform means product posts begin immediately with no warm-up required.
+      </div>
+
+      <div class="card">
+        <div class="card-title">Default Thresholds <span class="ctag">selling.defaults</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Minimum Views (total)</label>
+            <input type="number" id="selling-default-views" min="0" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Minimum Value Posts Published</label>
+            <input type="number" id="selling-default-posts" min="0" placeholder="0" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧵 Threads Overrides <span class="ctag">selling.platforms.threads</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Minimum Views</label>
+            <input type="number" id="selling-threads-views" min="0" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Minimum Value Posts</label>
+            <input type="number" id="selling-threads-posts" min="0" placeholder="0" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📘 Facebook Overrides <span class="ctag">selling.platforms.facebook</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Minimum Views</label>
+            <input type="number" id="selling-facebook-views" min="0" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Minimum Value Posts</label>
+            <input type="number" id="selling-facebook-posts" min="0" placeholder="0" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ SCHEDULE ═══ -->
+    <div class="section" id="sec-schedule">
+      <div class="section-header">
+        <h2>🕐 Schedule</h2>
+        <p>Controls when posts go out. <strong>Interval</strong> mode posts every N hours continuously. <strong>Calendar</strong> mode posts at specific times of day.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Schedule Mode <span class="ctag">schedule</span></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Mode</label>
+            <select id="schedule-mode" onchange="toggleScheduleMode()">
+              <option value="interval">Interval — post every N hours</option>
+              <option value="calendar">Calendar — post at specific times</option>
+            </select>
+          </div>
+          <div class="field" id="field-timezone">
+            <label>Timezone <span class="hint">e.g. Asia/Kolkata</span></label>
+            <input type="text" id="schedule-timezone" placeholder="Asia/Kolkata" />
+          </div>
+        </div>
+
+        <div id="calendar-fields" style="display:none;">
+          <div class="divider"></div>
+          <label>Posting Times <span class="hint">HH:MM in 24h format, press Add</span></label>
+          <div class="times-list" id="times-list"></div>
+          <div class="time-add-row">
+            <input type="text" id="time-input" placeholder="e.g. 10:30" maxlength="5" style="max-width:120px;" />
+            <button class="btn btn-secondary btn-sm" onclick="addTime()">+ Add Time</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ LEARNING ═══ -->
+    <div class="section" id="sec-learning">
+      <div class="section-header">
+        <h2>🧠 Self-Learning</h2>
+        <p>Controls the pilot phase and adaptive learning loop. The system posts pilot content, measures performance, and then generates optimized batches.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Learning Engine <span class="ctag">learning</span></div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable Self-Learning</div>
+            <div class="toggle-desc">Analyzes post performance and adapts content strategy over time</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="learning-enabled" /><div class="toggle-track"></div></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Pilot Phase Settings</div>
+        <div class="field-group triple">
+          <div class="field">
+            <label>Total Pilot Posts</label>
+            <input type="number" id="learning-pilot-posts" min="1" placeholder="40" />
+          </div>
+          <div class="field">
+            <label>Pilot Duration (days)</label>
+            <input type="number" id="learning-pilot-days" min="1" placeholder="5" />
+          </div>
+          <div class="field">
+            <label>Posts Per Day</label>
+            <input type="number" id="learning-posts-per-day" min="1" placeholder="8" />
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field">
+            <label>Pilot Timezone</label>
+            <input type="text" id="learning-timezone" placeholder="Asia/Kolkata" />
+          </div>
+        </div>
+        <label style="margin-top:8px;display:block;">Pilot Posting Times (local HH:MM)</label>
+        <div class="times-list" id="pilot-times-list"></div>
+        <div class="time-add-row">
+          <input type="text" id="pilot-time-input" placeholder="e.g. 13:00" maxlength="5" style="max-width:120px;" />
+          <button class="btn btn-secondary btn-sm" onclick="addPilotTime()">+ Add Time</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Adaptive Batch Settings</div>
+        <div class="field-group triple">
+          <div class="field">
+            <label>Next Batch Size</label>
+            <input type="number" id="learning-batch-size" min="1" placeholder="10" />
+          </div>
+          <div class="field">
+            <label>Exploration Fraction <span class="hint">0.0–1.0</span></label>
+            <input type="number" id="learning-exploration" min="0" max="1" step="0.05" placeholder="0.2" />
+          </div>
+          <div class="field">
+            <label>Max Campaign Posts</label>
+            <input type="number" id="learning-max-posts" min="1" placeholder="180" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">External Learning <span class="ctag">external_learning</span></div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable External Learning</div>
+            <div class="toggle-desc">Studies high-performing posts from your niche to improve content patterns</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="ext-learning-enabled" /><div class="toggle-track"></div></label>
+        </div>
+        <div class="divider"></div>
+        <div class="field-group">
+          <div class="field">
+            <label>Minimum Likes (to qualify as swipe)</label>
+            <input type="number" id="ext-min-likes" min="0" placeholder="50" />
+          </div>
+          <div class="field">
+            <label>Minimum Comments</label>
+            <input type="number" id="ext-min-comments" min="0" placeholder="10" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ WRITING ═══ -->
+    <div class="section" id="sec-writing">
+      <div class="section-header">
+        <h2>🖋️ Writing & Voice</h2>
+        <p>Controls how the AI humanizes generated posts to match your personal writing style.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Humanizer Settings <span class="ctag">writing</span></div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable Humanizer</div>
+            <div class="toggle-desc">AI edits generated posts to match your voice before publishing</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="writing-humanizer" /><div class="toggle-track"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Preserve Facts</div>
+            <div class="toggle-desc">Humanizer will never change factual claims — only style and phrasing</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="writing-preserve-facts" /><div class="toggle-track"></div></label>
+        </div>
+        <div class="divider"></div>
+        <div class="field-group single">
+          <div class="field">
+            <label>Fallback Policy <span class="hint">what to do when humanizer fails validation</span></label>
+            <select id="writing-fallback">
+              <option value="validated_original">validated_original — keep original if humanizer fails</option>
+              <option value="reject">reject — hold the post for manual review</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ MEDIA ═══ -->
+    <div class="section" id="sec-media">
+      <div class="section-header">
+        <h2>🖼️ Post Images</h2>
+        <p>Controls whether posts are published with AI-generated caption images. Requires Antigravity API access.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Image Engine <span class="ctag">content_media</span></div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable Post Images</div>
+            <div class="toggle-desc">Generates and attaches an image to every post using AI</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="media-enabled" /><div class="toggle-track"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Text-Only Fallback</div>
+            <div class="toggle-desc">Publish without image if image generation fails</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="media-fallback" /><div class="toggle-track"></div></label>
+        </div>
+        <div class="divider"></div>
+        <div class="field-group triple">
+          <div class="field">
+            <label>Image Width (px)</label>
+            <input type="number" id="media-width" min="512" max="2048" placeholder="1080" />
+          </div>
+          <div class="field">
+            <label>Image Height (px)</label>
+            <input type="number" id="media-height" min="512" max="2048" placeholder="1080" />
+          </div>
+          <div class="field">
+            <label>Provider</label>
+            <select id="media-provider">
+              <option value="antigravity">antigravity</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field">
+            <label>Max Attempts Per Post</label>
+            <input type="number" id="media-attempts" min="1" max="10" placeholder="3" />
+          </div>
+          <div class="field">
+            <label>Max Image Requests Per Day</label>
+            <input type="number" id="media-max-day" min="1" placeholder="48" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Rolling Content <span class="ctag">rolling_content</span></div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Enable Rolling Content</div>
+            <div class="toggle-desc">Automatically generates a new post after each published one — the campaign never runs out</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="rolling-enabled" /><div class="toggle-track"></div></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ VOICE ═══ -->
+    <div class="section" id="sec-voice">
+      <div class="section-header">
+        <h2>🎤 Voice Examples</h2>
+        <p>Reference posts that teach the AI your writing style — tone, sentence length, directness, personality. The AI matches this style but never copies the facts from these examples.</p>
+      </div>
+      <div class="info-banner">
+        <span class="info-icon">💡</span>
+        Write 5–10 example posts that represent your voice perfectly. Separate each with <code>---</code> on its own line.
+        This is saved to <strong>knowledge/voice.md</strong>.
+      </div>
+      <div class="card">
+        <div class="card-title">knowledge/voice.md <span class="ctag">markdown</span></div>
+        <textarea id="voice-text" class="code" style="min-height:500px;"></textarea>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ── Save bar ────────────────────────────────── -->
+  <div class="save-bar">
+    <div class="save-bar-left">
+      <strong id="save-bar-section">Seller Profile</strong> — changes are not auto-saved
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="loadAll()">↺ Discard Changes</button>
+      <button class="btn btn-primary" onclick="saveCurrentSection()">💾 Save Changes</button>
+    </div>
+  </div>
+</main>
+
+<!-- ── Toast container ──────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── Loader ───────────────────────────────────── -->
+<div id="loader"><div class="spinner"></div></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let product = {};
+const documentRevisions = {};
+let currentSection = 'seller';
+let topics = [];
+let pilotTimes = [];
+let calendarTimes = [];
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const sectionMeta = {
+  seller:   { title: 'Seller Profile',     crumb: 'product.json → seller' },
+  product:  { title: 'Product Details',    crumb: 'product.json → product' },
+  copy:     { title: 'Product Copy',       crumb: 'product-copy.md' },
+  topics:   { title: 'Key Topics',         crumb: 'product.json → product.key_topics' },
+  strategy: { title: 'Strategy',           crumb: 'product.json → strategy' },
+  selling:  { title: 'Selling Rules',      crumb: 'product.json → selling' },
+  schedule: { title: 'Schedule',           crumb: 'product.json → schedule' },
+  learning: { title: 'Self-Learning',      crumb: 'product.json → learning' },
+  writing:  { title: 'Writing & Voice',    crumb: 'product.json → writing' },
+  media:    { title: 'Post Images',        crumb: 'product.json → content_media' },
+  voice:    { title: 'Voice Examples',     crumb: 'knowledge/voice.md' },
+};
+
+function navigate(section, el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sec-' + section).classList.add('active');
+  currentSection = section;
+  const meta = sectionMeta[section];
+  document.getElementById('topbar-title').textContent = meta.title;
+  document.getElementById('topbar-crumb').textContent = meta.crumb;
+  document.getElementById('save-bar-section').textContent = meta.title;
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (method === 'POST' && documentRevisions[url]) opts.headers['If-Match'] = documentRevisions[url];
+  if (body !== undefined) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const result = await res.json();
+  if (result.ok && result.revision) documentRevisions[url] = result.revision;
+  return result;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> ${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Loader ────────────────────────────────────────────────────────────────────
+function showLoader() { document.getElementById('loader').classList.add('active'); }
+function hideLoader() { document.getElementById('loader').classList.remove('active'); }
+
+// ── Topics ────────────────────────────────────────────────────────────────────
+function renderTopics() {
+  const container = document.getElementById('topics-container');
+  const input = document.getElementById('topic-input');
+  container.innerHTML = '';
+  topics.forEach((t, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.innerHTML = `<span>${t}</span><button class="tag-remove" onclick="removeTopic(${i})">✕</button>`;
+    container.appendChild(tag);
+  });
+  container.appendChild(input);
+  input.focus();
+  document.getElementById('topics-count').textContent = `${topics.length} topic${topics.length !== 1 ? 's' : ''} added`;
+}
+
+function addTopic(val) {
+  const v = val.trim();
+  if (v && !topics.includes(v)) { topics.push(v); renderTopics(); }
+}
+
+function removeTopic(i) { topics.splice(i, 1); renderTopics(); }
+
+document.getElementById('topic-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    addTopic(this.value);
+    this.value = '';
+  }
+  if (e.key === 'Backspace' && this.value === '' && topics.length) {
+    topics.pop(); renderTopics();
+  }
+});
+
+// ── Platform chips ─────────────────────────────────────────────────────────────
+function togglePlatformChip(checkbox) {
+  const chip = checkbox.closest('.platform-chip');
+  chip.classList.toggle('selected', checkbox.checked);
+}
+
+function getPlatforms() {
+  return [...document.querySelectorAll('#platforms-grid input')].filter(i => i.checked).map(i => i.value);
+}
+
+function setPlatforms(arr) {
+  document.querySelectorAll('#platforms-grid input').forEach(input => {
+    const checked = arr.includes(input.value);
+    input.checked = checked;
+    input.closest('.platform-chip').classList.toggle('selected', checked);
+  });
+}
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+function toggleScheduleMode() {
+  const mode = document.getElementById('schedule-mode').value;
+  document.getElementById('calendar-fields').style.display = mode === 'calendar' ? 'block' : 'none';
+  document.getElementById('field-timezone').style.display = mode === 'calendar' ? 'flex' : 'none';
+}
+
+function renderCalendarTimes() {
+  const list = document.getElementById('times-list');
+  list.innerHTML = calendarTimes.map((t, i) =>
+    `<div class="time-chip">${t}<button onclick="removeCalTime(${i})">✕</button></div>`).join('');
+}
+
+function addTime() {
+  const v = document.getElementById('time-input').value.trim();
+  if (/^\d{1,2}:\d{2}$/.test(v) && !calendarTimes.includes(v)) {
+    calendarTimes.push(v);
+    calendarTimes.sort();
+    renderCalendarTimes();
+    document.getElementById('time-input').value = '';
+  } else toast('Enter a valid time like 14:30', 'error');
+}
+function removeCalTime(i) { calendarTimes.splice(i, 1); renderCalendarTimes(); }
+
+// ── Pilot times ───────────────────────────────────────────────────────────────
+function renderPilotTimes() {
+  const list = document.getElementById('pilot-times-list');
+  list.innerHTML = pilotTimes.map((t, i) =>
+    `<div class="time-chip">${t}<button onclick="removePilotTime(${i})">✕</button></div>`).join('');
+}
+
+function addPilotTime() {
+  const v = document.getElementById('pilot-time-input').value.trim();
+  if (/^\d{1,2}:\d{2}$/.test(v) && !pilotTimes.includes(v)) {
+    pilotTimes.push(v);
+    pilotTimes.sort();
+    renderPilotTimes();
+    document.getElementById('pilot-time-input').value = '';
+  } else toast('Enter a valid time like 10:30', 'error');
+}
+function removePilotTime(i) { pilotTimes.splice(i, 1); renderPilotTimes(); }
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  showLoader();
+  try {
+    const [pr, cr, vr] = await Promise.all([
+      api('GET', '/api/product'),
+      api('GET', '/api/copy'),
+      api('GET', '/api/voice'),
+    ]);
+
+    if (!pr.ok) throw new Error(pr.error);
+    product = pr.data;
+
+    // Seller
+    document.getElementById('seller-name').value = product.seller?.name || '';
+    document.getElementById('seller-username').value = product.seller?.username || '';
+    document.getElementById('seller-bio').value = product.seller?.bio_style || '';
+    document.getElementById('seller-threads').value = product.seller?.usernames?.threads || '';
+    document.getElementById('seller-facebook').value = product.seller?.usernames?.facebook || '';
+    document.getElementById('seller-x').value = product.seller?.usernames?.x || '';
+    document.getElementById('seller-instagram').value = product.seller?.usernames?.instagram || '';
+
+    // Product
+    document.getElementById('product-name').value = product.product?.name || '';
+    document.getElementById('product-type').value = product.product?.type || '';
+    document.getElementById('product-price').value = product.product?.price || '';
+    document.getElementById('product-platform').value = product.product?.platform || '';
+    document.getElementById('product-url').value = product.product?.sales_url || '';
+    document.getElementById('product-description').value = product.product?.description || '';
+    document.getElementById('product-audience').value = product.product?.target_audience || '';
+
+    // Topics
+    topics = Array.isArray(product.product?.key_topics) ? [...product.product.key_topics] : [];
+    renderTopics();
+
+    // Strategy
+    setPlatforms(product.strategy?.platforms || ['threads']);
+    document.getElementById('strategy-frequency').value = product.strategy?.post_frequency_hours || 1;
+    document.getElementById('strategy-ratio').value = product.strategy?.product_mention_ratio || '1 in 5 posts';
+    document.getElementById('strategy-value-posts').value = product.strategy?.value_posts_before_selling || 0;
+
+    // Selling
+    document.getElementById('selling-default-views').value = product.selling?.defaults?.minimum_views ?? 0;
+    document.getElementById('selling-default-posts').value = product.selling?.defaults?.minimum_value_posts ?? 0;
+    document.getElementById('selling-threads-views').value = product.selling?.platforms?.threads?.minimum_views ?? 0;
+    document.getElementById('selling-threads-posts').value = product.selling?.platforms?.threads?.minimum_value_posts ?? 0;
+    document.getElementById('selling-facebook-views').value = product.selling?.platforms?.facebook?.minimum_views ?? 0;
+    document.getElementById('selling-facebook-posts').value = product.selling?.platforms?.facebook?.minimum_value_posts ?? 0;
+
+    // Schedule
+    const schedMode = product.schedule?.mode || 'interval';
+    document.getElementById('schedule-mode').value = schedMode;
+    document.getElementById('schedule-timezone').value = product.schedule?.timezone || product.learning?.pilot_timezone || '';
+    calendarTimes = Array.isArray(product.schedule?.local_times) ? [...product.schedule.local_times] : [];
+    renderCalendarTimes();
+    toggleScheduleMode();
+
+    // Learning
+    document.getElementById('learning-enabled').checked = product.learning?.enabled !== false;
+    document.getElementById('learning-pilot-posts').value = product.learning?.pilot_posts || 40;
+    document.getElementById('learning-pilot-days').value = product.learning?.pilot_days || 5;
+    document.getElementById('learning-posts-per-day').value = product.learning?.pilot_posts_per_day || 8;
+    document.getElementById('learning-timezone').value = product.learning?.pilot_timezone || '';
+    pilotTimes = Array.isArray(product.learning?.pilot_local_times) ? [...product.learning.pilot_local_times] : [];
+    renderPilotTimes();
+    document.getElementById('learning-batch-size').value = product.learning?.next_batch_size || 10;
+    document.getElementById('learning-exploration').value = product.learning?.exploration_fraction ?? 0.2;
+    document.getElementById('learning-max-posts').value = product.learning?.max_campaign_posts || 180;
+
+    // External learning
+    document.getElementById('ext-learning-enabled').checked = product.external_learning?.enabled !== false;
+    document.getElementById('ext-min-likes').value = product.external_learning?.minimum_likes ?? 50;
+    document.getElementById('ext-min-comments').value = product.external_learning?.minimum_comments ?? 10;
+
+    // Writing
+    document.getElementById('writing-humanizer').checked = product.writing?.humanizer_enabled !== false;
+    document.getElementById('writing-preserve-facts').checked = product.writing?.preserve_facts !== false;
+    document.getElementById('writing-fallback').value = product.writing?.fallback_policy || 'validated_original';
+
+    // Media
+    document.getElementById('media-enabled').checked = product.content_media?.enabled !== false;
+    document.getElementById('media-fallback').checked = product.content_media?.text_only_fallback === true;
+    document.getElementById('media-width').value = product.content_media?.width || 1080;
+    document.getElementById('media-height').value = product.content_media?.height || 1080;
+    document.getElementById('media-provider').value = product.content_media?.provider || 'antigravity';
+    document.getElementById('media-attempts').value = product.content_media?.max_attempts || 3;
+    document.getElementById('media-max-day').value = product.content_media?.max_requests_per_day || 48;
+
+    // Rolling
+    document.getElementById('rolling-enabled').checked = product.rolling_content?.enabled !== false;
+
+    // Copy
+    if (cr.ok) document.getElementById('copy-text').value = cr.data || '';
+
+    // Voice
+    if (vr.ok) document.getElementById('voice-text').value = vr.data || '';
+
+    toast('All data loaded', 'success');
+  } catch (err) {
+    toast('Load failed: ' + err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+// ── Build product object from form ─────────────────────────────────────────────
+function buildProductFromForm() {
+  const p = JSON.parse(JSON.stringify(product)); // clone
+
+  // Seller
+  p.seller = {
+    ...p.seller,
+    name: document.getElementById('seller-name').value.trim(),
+    username: document.getElementById('seller-username').value.trim(),
+    bio_style: document.getElementById('seller-bio').value.trim(),
+    usernames: {
+      threads: document.getElementById('seller-threads').value.trim(),
+      facebook: document.getElementById('seller-facebook').value.trim(),
+      x: document.getElementById('seller-x').value.trim(),
+      instagram: document.getElementById('seller-instagram').value.trim(),
+    }
+  };
+
+  // Product
+  p.product = {
+    ...p.product,
+    name: document.getElementById('product-name').value.trim(),
+    type: document.getElementById('product-type').value.trim(),
+    price: document.getElementById('product-price').value.trim(),
+    platform: document.getElementById('product-platform').value.trim(),
+    sales_url: document.getElementById('product-url').value.trim(),
+    description: document.getElementById('product-description').value.trim(),
+    target_audience: document.getElementById('product-audience').value.trim(),
+    key_topics: [...topics],
+  };
+
+  // Strategy
+  p.strategy = {
+    ...p.strategy,
+    platforms: getPlatforms(),
+    post_frequency_hours: Number(document.getElementById('strategy-frequency').value) || 1,
+    product_mention_ratio: document.getElementById('strategy-ratio').value.trim(),
+    value_posts_before_selling: Number(document.getElementById('strategy-value-posts').value) || 0,
+  };
+
+  // Selling
+  p.selling = {
+    defaults: {
+      minimum_views: Number(document.getElementById('selling-default-views').value) || 0,
+      minimum_value_posts: Number(document.getElementById('selling-default-posts').value) || 0,
+    },
+    platforms: {
+      threads: {
+        minimum_views: Number(document.getElementById('selling-threads-views').value) || 0,
+        minimum_value_posts: Number(document.getElementById('selling-threads-posts').value) || 0,
+      },
+      facebook: {
+        minimum_views: Number(document.getElementById('selling-facebook-views').value) || 0,
+        minimum_value_posts: Number(document.getElementById('selling-facebook-posts').value) || 0,
+      }
+    }
+  };
+
+  // Schedule
+  const schedMode = document.getElementById('schedule-mode').value;
+  p.schedule = { mode: schedMode };
+  if (schedMode === 'calendar') {
+    p.schedule.timezone = document.getElementById('schedule-timezone').value.trim();
+    p.schedule.local_times = [...calendarTimes];
+  }
+
+  // Learning
+  p.learning = {
+    enabled: document.getElementById('learning-enabled').checked,
+    pilot_posts: Number(document.getElementById('learning-pilot-posts').value) || 40,
+    pilot_days: Number(document.getElementById('learning-pilot-days').value) || 5,
+    pilot_posts_per_day: Number(document.getElementById('learning-posts-per-day').value) || 8,
+    pilot_timezone: document.getElementById('learning-timezone').value.trim(),
+    pilot_local_times: [...pilotTimes],
+    next_batch_size: Number(document.getElementById('learning-batch-size').value) || 10,
+    exploration_fraction: Number(document.getElementById('learning-exploration').value) || 0.2,
+    max_campaign_posts: Number(document.getElementById('learning-max-posts').value) || 180,
+  };
+
+  // External learning
+  p.external_learning = {
+    enabled: document.getElementById('ext-learning-enabled').checked,
+    minimum_likes: Number(document.getElementById('ext-min-likes').value) || 50,
+    minimum_comments: Number(document.getElementById('ext-min-comments').value) || 10,
+  };
+
+  // Writing
+  p.writing = {
+    humanizer_enabled: document.getElementById('writing-humanizer').checked,
+    voice_examples_file: 'knowledge/voice.md',
+    preserve_facts: document.getElementById('writing-preserve-facts').checked,
+    fallback_policy: document.getElementById('writing-fallback').value,
+  };
+
+  // Content media
+  p.content_media = {
+    enabled: document.getElementById('media-enabled').checked,
+    text_only_fallback: document.getElementById('media-fallback').checked,
+    width: Number(document.getElementById('media-width').value) || 1080,
+    height: Number(document.getElementById('media-height').value) || 1080,
+    provider: document.getElementById('media-provider').value,
+    max_attempts: Number(document.getElementById('media-attempts').value) || 3,
+    max_requests_per_day: Number(document.getElementById('media-max-day').value) || 48,
+    retry_minutes: p.content_media?.retry_minutes || 5,
+    image_fallback: p.content_media?.image_fallback || 'card',
+    image_timeout_seconds: p.content_media?.image_timeout_seconds || 240,
+  };
+
+  // Rolling content
+  p.rolling_content = { enabled: document.getElementById('rolling-enabled').checked };
+
+  return p;
+}
+
+// ── Save current section ───────────────────────────────────────────────────────
+async function saveCurrentSection() {
+  showLoader();
+  try {
+    let result;
+
+    if (currentSection === 'copy') {
+      const text = document.getElementById('copy-text').value;
+      result = await api('POST', '/api/copy', JSON.stringify({ text }));
+    } else if (currentSection === 'voice') {
+      const text = document.getElementById('voice-text').value;
+      result = await api('POST', '/api/voice', JSON.stringify({ text }));
+    } else {
+      // All product.json sections — build full object and save
+      const updated = buildProductFromForm();
+      result = await api('POST', '/api/product', updated);
+      if (result.ok) product = result.data;
+    }
+
+    if (!result.ok) throw new Error(result.error);
+    toast(result.message || 'Saved!', 'success');
+  } catch (err) {
+    toast('Save failed: ' + err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+// ── Keyboard shortcut Ctrl+S ───────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveCurrentSection();
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>

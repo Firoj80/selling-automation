@@ -1,0 +1,30 @@
+{
+  "seller": {
+    "name": "Your name",
+    "username": "your_handle",
+    "bio_style": "Practical tips for creators"
+  },
+  "product": {
+    "name": "Creator Monetization Playbook",
+    "type": "ebook",
+    "price": "$19",
+    "sales_url": "https://example.com/your-product",
+    "description": "A guide to choosing a niche, understanding audience needs, and evaluating affiliate programs with clear disclosures.",
+    "target_audience": "New content creators",
+    "key_topics": [
+      "Choosing a niche",
+      "Learning what your audience needs",
+      "Evaluating affiliate programs"
+    ]
+  },
+  "strategy": {
+    "platforms": [
+      "threads",
+      "facebook"
+    ],
+    "post_frequency_hours": 3,
+    "value_posts_before_selling": 15,
+    "view_threshold_to_sell": 20000,
+    "product_mention_ratio": "1 in 5 posts"
+  }
+}

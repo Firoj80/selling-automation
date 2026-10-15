@@ -1,0 +1,604 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Product content campaign",
+  "type": "object",
+  "required": [
+    "seller",
+    "product"
+  ],
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{8,80}$"
+    },
+    "config_version": {
+      "const": 1
+    },
+    "seller": {
+      "type": "object",
+      "required": [
+        "name",
+        "username"
+      ],
+      "properties": {
+        "usernames": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threads": {
+              "type": "string",
+              "pattern": "^\\S+$"
+            },
+            "facebook": {
+              "type": "string",
+              "pattern": "^\\S+$"
+            },
+            "x": {
+              "type": "string",
+              "pattern": "^\\S+$"
+            },
+            "instagram": {
+              "type": "string",
+              "pattern": "^\\S+$"
+            }
+          }
+        },
+        "name": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "username": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "bio_style": {
+          "type": "string"
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "price",
+        "key_topics"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "price": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "sales_url": {
+          "description": "Empty or omitted until checkout is available; promotion remains disabled.",
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            }
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "target_audience": {
+          "type": "string"
+        },
+        "key_topics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "properties": {
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "threads"
+          ],
+          "items": {
+            "enum": [
+              "threads",
+              "facebook",
+              "x",
+              "instagram"
+            ]
+          }
+        },
+        "post_frequency_hours": {
+          "type": "number",
+          "minimum": 1,
+          "default": 3
+        },
+        "value_posts_before_selling": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 15
+        },
+        "view_threshold_to_sell": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 20000
+        },
+        "view_thresholds_per_platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threads": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "facebook": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "instagram": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "product_mention_ratio": {
+          "type": "string",
+          "pattern": "^1 in (?:[2-9]|[1-9][0-9]+) posts$",
+          "default": "1 in 5 posts"
+        }
+      }
+    },
+    "external_learning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "minimum_likes": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 50
+        },
+        "minimum_comments": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10
+        }
+      }
+    },
+    "learning": {
+      "type": "object",
+      "description": "20 pilot posts per enabled platform over five days; four local times per day. See README for adaptive settings.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "pilot_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Legacy derived field. Configure pilot.posts_per_platform and schedule.local_times for new campaigns."
+        },
+        "pilot_posts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Legacy derived field. Configure pilot.posts_per_platform and schedule.local_times for new campaigns."
+        },
+        "pilot_posts_per_day": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Legacy derived field. Configure pilot.posts_per_platform and schedule.local_times for new campaigns."
+        },
+        "pilot_timezone": {
+          "type": "string",
+          "default": "Asia/Kolkata"
+        },
+        "pilot_local_times": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+          }
+        },
+        "next_batch_size": {
+          "type": "integer",
+          "enum": [
+            5,
+            10,
+            15
+          ]
+        },
+        "exploration_fraction": {
+          "const": 0.2
+        },
+        "max_campaign_posts": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 500
+        }
+      }
+    },
+    "writing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "humanizer_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "voice_examples_file": {
+          "type": "string",
+          "default": "knowledge/voice.md"
+        },
+        "preserve_facts": {
+          "const": true
+        },
+        "forbid_em_dash": {
+          "type": "boolean",
+          "default": true
+        },
+        "fallback_policy": {
+          "enum": [
+            "hold_for_review",
+            "validated_original"
+          ],
+          "default": "hold_for_review"
+        },
+        "target_accounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "type": "string",
+              "pattern": "^@?\\S+$"
+            },
+            "threads": {
+              "type": "string",
+              "pattern": "^@?\\S+$"
+            }
+          }
+        }
+      }
+    },
+    "selling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "minimum_value_posts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minimum_views": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "one_product_post_every": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        "platforms": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threads": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "minimum_value_posts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minimum_views": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "one_product_post_every": {
+                  "type": "integer",
+                  "minimum": 2
+                }
+              }
+            },
+            "facebook": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "minimum_value_posts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minimum_views": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "one_product_post_every": {
+                  "type": "integer",
+                  "minimum": 2
+                }
+              }
+            },
+            "x": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "minimum_value_posts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minimum_views": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "one_product_post_every": {
+                  "type": "integer",
+                  "minimum": 2
+                }
+              }
+            },
+            "instagram": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "minimum_value_posts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minimum_views": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "one_product_post_every": {
+                  "type": "integer",
+                  "minimum": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "posts_per_platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threads": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "facebook": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "instagram": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timezone": {
+          "type": "string"
+        },
+        "local_times": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+          }
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "minimum_gap_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "overdue_policy": {
+          "const": "next_available_slot"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "calendar",
+            "interval"
+          ],
+          "default": "calendar"
+        }
+      }
+    },
+    "research": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "allow_partial": {
+          "type": "boolean",
+          "default": false
+        },
+        "minimum_records_per_platform": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 100
+        },
+        "minimum_authors_per_platform": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 50
+        },
+        "minimum_discussions_per_platform": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "max_searches_per_platform_per_run": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "max_discussions_per_search": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "max_relevance_checks_per_search": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "freshness_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        }
+      }
+    },
+    "content_media": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 3
+        },
+        "retry_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 5
+        },
+        "text_only_fallback": {
+          "type": "boolean",
+          "default": false
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 600,
+          "maximum": 2048,
+          "default": 1080
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 600,
+          "maximum": 2048,
+          "default": 1080
+        },
+        "provider": {
+          "enum": [
+            "card",
+            "antigravity"
+          ],
+          "default": "card"
+        },
+        "image_fallback": {
+          "enum": [
+            "card",
+            "hold"
+          ],
+          "default": "card"
+        },
+        "image_timeout_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 600,
+          "default": 240
+        },
+        "max_requests_per_day": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 24
+        }
+      }
+    },
+    "rolling_content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "target_accounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "string",
+          "pattern": "^@?\\S+$"
+        },
+        "threads": {
+          "type": "string",
+          "pattern": "^@?\\S+$"
+        }
+      }
+    }
+  }
+}

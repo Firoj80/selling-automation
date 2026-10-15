@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Environment & Secrets
+private/
+/product.json
+knowledge/product/
+knowledge/learning/
+knowledge/voice.md
+job-state/
+applications/
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Runtime & State Files
+*.pid
+threads-agent.pid
+job-agent.pid
+threads-engagement-state.json
+threads-leads.json
+threads-leads-ai.json
+autopilot-mode.json
+
+# Logs & Media artifacts
+logs/*
+!logs/.gitkeep
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backups & Temporary Files
+backups/
+release/
+*.tgz
+*.tar.gz
+*.zip
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+# OS / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+scratch/
+
+# Personal campaign source and analyzed voice
+product-copy.md
+knowledge/target-style.json

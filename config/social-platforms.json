@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "platforms": {
+    "threads": {
+      "origin": "https://www.threads.com",
+      "startUrl": "https://www.threads.com/",
+      "browserPageMethod": "getThreadsPage",
+      "enabled": true
+    },
+    "facebook": {
+      "origin": "https://www.facebook.com",
+      "startUrl": "https://www.facebook.com/",
+      "browserPageMethod": "getFacebookPage",
+      "enabled": true
+    },
+    "x": {
+      "origin": "https://x.com",
+      "startUrl": "https://x.com/home",
+      "browserPageMethod": "getXPage",
+      "enabled": true
+    },
+    "instagram": {
+      "origin": "https://www.instagram.com",
+      "startUrl": "https://www.instagram.com/",
+      "browserPageMethod": "getInstagramPage",
+      "enabled": true
+    }
+  }
+}
