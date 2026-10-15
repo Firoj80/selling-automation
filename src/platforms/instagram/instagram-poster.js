@@ -4,14 +4,14 @@
  * Publishes image + caption posts via Puppeteer CDP.
  */
 
-const fs = require("fs");
-const path = require("path");
 const CONFIG = require("../../../config");
 const browserManager = require("../../browser/browser-manager");
 const stateStore = require("../../storage/state-store");
 const logger = require("../../logging/logger");
-const { canonicalPostUrl } = require("../../content/post-metrics");
 
+const { writeComposerText, assertComposerText } = require('../composer-text');
+const { profilePermalinks, verifyVisualPublication } = require('../visual-publication');
+const INSTAGRAM_CAPTION_SELECTOR = 'textarea[aria-label*="caption" i], [contenteditable="true"][aria-label*="caption" i], [role="dialog"] textarea, [role="dialog"] [contenteditable="true"][role="textbox"]';
 class InstagramPoster {
   /**
    * Publishes post to Instagram Feed via CDP.
@@ -23,6 +23,7 @@ class InstagramPoster {
     if (!options.mediaPaths || !options.mediaPaths.length) {
       throw new Error("Instagram posts require an image attachment; text-only publishing is not supported by Instagram");
     }
+    if (options.mediaPaths.length !== 1) throw new Error('Instagram publisher currently supports exactly one prepared image');
 
     const postId = `ig_post_${Date.now()}`;
     const captionText = (options.text || "").trim();
@@ -38,8 +39,14 @@ class InstagramPoster {
       return { success: true, simulated: true, postId, text: captionText, mediaCount: options.mediaPaths.length, verifiedMediaCount: options.mediaPaths.length };
     }
 
+    let submitted = false;
     try {
+      if (CONFIG.APPROVAL_MODE) throw new Error('Approval mode prevents live publication');
+      const username = options.username?.replace(/^@/, '');
+      if (!username || !/^[\w.]+$/.test(username)) throw new Error('A configured Instagram username is required');
+      if (!captionText) throw new Error('Instagram caption is required');
       const page = await browserManager.getInstagramPage();
+      const before = new Set(await profilePermalinks(page, 'instagram', username));
 
       if (!page.url().includes("instagram.com")) {
         await page.goto(CONFIG.INSTAGRAM_HOME || "https://www.instagram.com/", {
@@ -97,43 +104,14 @@ class InstagramPoster {
       await fileInput.uploadFile(options.mediaPaths[0]);
       await new Promise(r => setTimeout(r, 3000));
 
-      // Helper to click header action button ("Next" or "Share") using native click + mouse coordinates
-      const clickHeaderAction = async (expectedText) => {
-        const buttonCoords = await page.evaluate((text) => {
-          const all = Array.from(document.querySelectorAll('button, div[role="button"], span, div'));
-          const btn = all.find(el => {
-            const t = (el.innerText || el.textContent || '').trim().toLowerCase();
-            return t === text.toLowerCase() && el.children.length === 0;
-          });
-          if (btn) {
-            const target = btn.closest('button, div[role="button"]') || btn;
-            target.click();
-            const rect = target.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-              return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-            }
-          }
-          return null;
-        }, expectedText);
-
-        if (buttonCoords) {
-          await page.mouse.click(buttonCoords.x, buttonCoords.y).catch(() => {});
-          return true;
-        }
-
-        return page.evaluate((text) => {
-          const els = Array.from(document.querySelectorAll('button, div[role="button"]'));
-          const btn = els.find(el => (el.innerText || el.textContent || '').trim().toLowerCase() === text.toLowerCase());
-          if (btn) { btn.click(); return true; }
-          return false;
-        }, expectedText);
-      };
+      // Click each header action once, supporting modal and full-page composers.
+      const clickHeaderAction = text => require('../composer-action').clickVisibleAction(page, text);
 
       // Step: Advance through "Next" button(s) until caption area or Share button is visible
       for (let step = 1; step <= 2; step++) {
         await new Promise(r => setTimeout(r, 1500));
         const hasCaptionOrShare = await page.evaluate(() => {
-          const textarea = document.querySelector('textarea, [contenteditable="true"]');
+          const textarea = document.querySelector('textarea[aria-label*="caption" i], [contenteditable="true"][aria-label*="caption" i], [role="dialog"] textarea, [role="dialog"] [contenteditable="true"]');
           const shareBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).some(b => (b.innerText || '').trim().toLowerCase() === 'share');
           return !!(textarea || shareBtn);
         });
@@ -150,48 +128,16 @@ class InstagramPoster {
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      // Step: Enter caption
-      if (captionText) {
-        logger.info(`[INSTAGRAM POSTER] Entering caption (${captionText.length} chars)...`);
-        const captionBoxSelector = 'textarea[aria-label*="caption" i], textarea, div[role="dialog"] div[aria-label*="caption" i][contenteditable="true"], div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="dialog"] [contenteditable="true"]';
-        const captionBox = await page.waitForSelector(captionBoxSelector, { timeout: 10000 }).catch(() => null);
-
-        if (captionBox) {
-          await captionBox.click();
-          await new Promise(r => setTimeout(r, 500));
-
-          await page.keyboard.down("Control");
-          await page.keyboard.press("KeyA");
-          await page.keyboard.up("Control");
-          await page.keyboard.press("Backspace");
-          await new Promise(r => setTimeout(r, 200));
-
-          await page.keyboard.type(captionText, { delay: 15 });
-          await new Promise(r => setTimeout(r, 500));
-
-          const verifiedVal = await page.evaluate((el, text) => {
-            if (el && el.value !== text) {
-              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-              if (nativeSetter) {
-                nativeSetter.call(el, text);
-              } else {
-                el.value = text;
-              }
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-            return el ? (el.value || el.innerText || '') : '';
-          }, captionBox, captionText);
-
-          logger.info(`[INSTAGRAM POSTER] Caption entered successfully (length: ${verifiedVal.length}).`);
-          await new Promise(r => setTimeout(r, 1000));
-        } else {
-          logger.warn("[INSTAGRAM POSTER] Could not find caption textbox, continuing to share image...");
-        }
-      }
+      const captionBoxSelector = INSTAGRAM_CAPTION_SELECTOR;
+      const captionBox = await page.waitForSelector(captionBoxSelector, { visible: true, timeout: 15000 });
+      if (!captionBox) throw new Error('Instagram caption editor unavailable; submission blocked');
+      await writeComposerText(page, captionBox, captionText);
+      await assertComposerText(page, captionBox, captionText);
+      await page.waitForFunction(() => [...document.images].some(img => img.src.startsWith('blob:') && img.complete && img.naturalWidth >= 200), { timeout: 15000 });
 
       // Step: Click "Share"
       logger.info("[INSTAGRAM POSTER] Submitting post (Share)...");
+      submitted = true;
       const shared = await clickHeaderAction("Share");
       if (!shared) throw new Error("Could not find 'Share' button on Instagram");
 
@@ -199,8 +145,9 @@ class InstagramPoster {
       logger.info("[INSTAGRAM POSTER] Awaiting share completion...");
       await page.waitForFunction(() => {
         const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
-        return bodyText.includes('your post has been shared') || bodyText.includes('post shared');
-      }, { timeout: 35000 }).catch(() => logger.warn('[INSTAGRAM POSTER] Confirmation text wait timed out, verifying profile...'));
+        return bodyText.includes('your post has been shared') || bodyText.includes('post shared') ||
+          (!location.pathname.startsWith('/create/') && !document.querySelector('textarea[aria-label*="caption" i], [contenteditable="true"][aria-label*="caption" i]'));
+      }, { timeout: 60000 });
 
       await new Promise(r => setTimeout(r, 3500));
 
@@ -210,27 +157,17 @@ class InstagramPoster {
         if (closeBtn) closeBtn.click();
       }).catch(() => {});
 
-      // Navigate to user profile to verify published post and capture public permalink
-      let postUrl = null;
-      try {
-        const profileUrl = "https://www.instagram.com/hiii_firoj/";
-        logger.info(`[INSTAGRAM POSTER] Navigating to profile ${profileUrl} to verify publication...`);
-        await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForSelector('a[href^="/p/"], a[href^="/reel/"]', { timeout: 15000 }).catch(() => null);
-        await new Promise(r => setTimeout(r, 2000));
-
-        const extractedUrl = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href^="/p/"], a[href^="/reel/"]')).map(a => a.href);
-          return links.length ? links[0] : null;
-        });
-
-        if (extractedUrl) {
-          postUrl = canonicalPostUrl(extractedUrl, "instagram") || extractedUrl;
-          logger.info(`[INSTAGRAM POSTER] Verified live post URL: ${postUrl}`);
+      let evidence;
+      for (let attempt = 0; attempt < 3 && !evidence; attempt++) {
+        const candidates = (await profilePermalinks(page, 'instagram', username)).filter(url => !before.has(url));
+        for (const postUrl of candidates.slice(0, 6)) {
+          try { evidence = await verifyVisualPublication(page, { platform: 'instagram', text: captionText, username, postUrl, count: options.mediaPaths.length }); break; }
+          catch (err) { logger.warn('[INSTAGRAM POSTER] Candidate verification: ' + err.message); }
         }
-      } catch (err) {
-        logger.warn(`[INSTAGRAM POSTER] Profile verification warning: ${err.message}`);
+        if (!evidence && attempt < 2) await new Promise(resolve => setTimeout(resolve, 2000));
       }
+      if (!evidence) throw new Error('No new Instagram post with the complete intended caption and image was verified');
+      const postUrl = evidence.postUrl;
 
       logger.info("✅ Post published successfully on Instagram (Image + Caption)!");
       stateStore.recordActionTransition("OWN_POST", postId, "INIT", "VERIFIED_PUBLISHED", {
@@ -245,14 +182,14 @@ class InstagramPoster {
         success: true,
         verified: true,
         postId,
-        postUrl: postUrl || `https://www.instagram.com/p/shared_${Date.now()}/`,
+        postUrl,
         text: captionText,
         mediaCount: options.mediaPaths.length,
-        verifiedMediaCount: options.mediaPaths.length
+        ...evidence
       };
     } catch (err) {
       logger.error(`Failed to publish post on Instagram: ${err.message}`);
-      return { success: false, reason: err.message };
+      return { success: false, verified: false, submitted, reason: err.message };
     }
   }
 }
@@ -262,3 +199,4 @@ module.exports = instagramPoster;
 module.exports.instagramPoster = instagramPoster;
 module.exports.InstagramPoster = InstagramPoster;
 module.exports.publishInstagramPost = (opts) => instagramPoster.publishPost(opts);
+module.exports.INSTAGRAM_CAPTION_SELECTOR = INSTAGRAM_CAPTION_SELECTOR;
