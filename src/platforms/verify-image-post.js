@@ -16,9 +16,10 @@ async function verifyImagePost(page, { text, platform, postUrl }, count = 1) {
   const url = canonicalPostUrl(postUrl, platform);
   if (!url) throw new Error('Image publication has no supported public permalink; review before retrying');
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
-  await page.waitForSelector('article, [role="article"], [data-pressable-container="true"]', { timeout: 15000 });
+  await page.waitForSelector(platform === 'threads' ? 'a[href*="/post/"]' : 'article, [role="article"], [data-pressable-container="true"]', { timeout: 15000 });
   for (let attempt = 0; attempt < 4; attempt++) {
     const snapshots = await page.evaluate(collectImagePosts);
+    if (platform === 'threads') snapshots.push(...await page.evaluate(require('./threads/threads-post-evidence').collectThreadsEvidence, { text, postUrl: url }));
     const post = selectSnapshot(snapshots, { text, platform }, url);
     if (post?.images?.length >= count) return { postUrl: url, verifiedMediaCount: post.images.length, mediaVerifiedAt: Date.now() };
     if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 2000));

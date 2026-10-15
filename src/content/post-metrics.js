@@ -107,11 +107,17 @@ function selectSnapshot(snapshots, post, url = null) {
 }
 
 async function findPostUrl(page, post) {
-  const snapshots = await page.evaluate(collectPostSnapshots);
-  const snapshot = selectSnapshot(snapshots, post);
+  let snapshots = await page.evaluate(collectPostSnapshots);
+  let snapshot = selectSnapshot(snapshots, post);
+  if (!snapshot && post.platform === 'threads') {
+    snapshots = await page.evaluate(require('../platforms/threads/threads-post-evidence').collectThreadsEvidence, { text: post.text, username: post.username });
+    if (snapshots.length !== 1) return null;
+    snapshot = selectSnapshot(snapshots, post);
+  }
   if (!snapshot) return null;
   const urls = [...new Set(snapshot.links.map(link => canonicalPostUrl(link, post.platform)).filter(Boolean))];
-  return urls.length >= 1 ? urls[0] : null;
+  if (post.platform === 'threads' && post.username && urls.some(url => new URL(url).pathname.split('/')[1].toLowerCase() !== '@' + post.username.replace(/^@/, '').toLowerCase())) return null;
+  return urls.length === 1 ? urls[0] : null;
 }
 
 class BrowserMetricsReader {
@@ -122,11 +128,13 @@ class BrowserMetricsReader {
     const method = { threads: 'getThreadsPage', facebook: 'getFacebookPage', x: 'getXPage', instagram: 'getInstagramPage' }[post.platform];
     const page = await this.browser[method]();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
-    await page.waitForSelector('article, [role="article"], [data-pressable-container="true"]', { timeout: 15000 });
+    await page.waitForSelector(post.platform === 'threads' ? 'a[href*="/post/"]' : 'article, [role="article"], [data-pressable-container="true"]', { timeout: 15000 });
     let snapshot;
     // SPA metrics often appear after the article shell. Give labels time to load.
     for (let attempt = 0; attempt < 3; attempt++) {
-      snapshot = selectSnapshot(await page.evaluate(collectPostSnapshots), post, url);
+      const snapshots = await page.evaluate(collectPostSnapshots);
+      if (post.platform === 'threads') snapshots.push(...await page.evaluate(require('../platforms/threads/threads-post-evidence').collectThreadsEvidence, { text: post.text, postUrl: url }));
+      snapshot = selectSnapshot(snapshots, post, url);
       if (snapshot && parseMetrics(snapshot.labels).views !== null) break;
       if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 1000));
     }

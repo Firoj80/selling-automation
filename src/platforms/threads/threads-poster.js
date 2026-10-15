@@ -34,7 +34,6 @@ class ThreadsPoster {
       await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 35000 });
       await new Promise(r => setTimeout(r, 2500));
 
-      const snippet = postText.replace(/https?:\/\/[^\s]+/g, "").slice(0, 35).trim();
       for (let attempt = 1; attempt <= 6; attempt++) {
         if (attempt === 3) {
           logger.info(`[THREADS POSTER] Attempt 3: Performing cache-busting reload on ${profileUrl} for newly indexed post...`);
@@ -42,21 +41,10 @@ class ThreadsPoster {
           await new Promise(r => setTimeout(r, 2500));
         }
 
-        const found = await page.evaluate((snip) => {
-          const cleanSnip = snip.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const articles = Array.from(document.querySelectorAll('article, [data-pressable-container="true"]'));
-          return articles.some(a => {
-            if (a.tagName === 'SCRIPT' || a.tagName === 'STYLE') return false;
-            const content = (a.innerText || a.textContent || "").trim();
-            const cleanContent = content.toLowerCase().replace(/[^a-z0-9]/g, "");
-            return cleanContent.includes(cleanSnip) || content.includes(snip);
-          });
-        }, snippet);
-
-        if (found) {
-          logger.info(`[THREADS POSTER] ✅ Post verified present on @${activeUsername} profile feed DOM (attempt ${attempt}/6)!`);
-          const postUrl = await findPostUrl(page, { text: postText, platform: 'threads' }).catch(() => null);
-          return { verified: true, postUrl, reason: `Verified live on @${activeUsername} profile feed DOM` };
+        const postUrl = await findPostUrl(page, { text: postText, platform: 'threads', username: activeUsername }).catch(() => null);
+        if (postUrl) {
+          logger.info('[THREADS POSTER] Verified complete caption and author permalink: ' + postUrl);
+          return { verified: true, postUrl, reason: 'Verified complete caption and author permalink on profile' };
         }
 
         await page.evaluate(() => window.scrollBy({ top: 300, left: 0, behavior: "smooth" }));

@@ -11,6 +11,38 @@ const executablePath = process.env.CONTENT_TEST_BROWSER || [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ].find(file => fs.existsSync(file));
 
+test('unmarked Threads cards verify full caption, author, permalink and only their own image', { skip: !executablePath }, async () => {
+  const { default: puppeteer } = await import('puppeteer-core');
+  const { collectThreadsEvidence } = require('../src/platforms/threads/threads-post-evidence');
+  const browser = await puppeteer.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const raster = await require('sharp')({ create: { width: 400, height: 400, channels: 3, background: '#663399' } }).png().toBuffer();
+    const image = `data:image/png;base64,${raster.toString('base64')}`;
+    const url = 'https://www.threads.com/@seller/post/ABC';
+    const caption = 'Looking at folder sizes is painful. A complete map shows the largest folders.';
+    await page.setContent(`<main>
+      <div><div><a href="${url}">5m</a></div><div>${caption}</div><a href="${url}/media"><img width="300" height="300" src="${image}"></a></div>
+      <div><a href="https://www.threads.com/@other/post/DEF">Other post</a><div>Looking at folder sizes is painful. Different ending.</div><img width="300" height="300" src="${image}"></div>
+    </main>`);
+    await page.waitForFunction(() => [...document.images].every(img => img.complete && img.naturalWidth));
+    const evidence = await page.evaluate(collectThreadsEvidence, { text: caption, username: 'seller' });
+    assert.equal(evidence.length, 1);
+    assert.deepEqual(evidence[0].links, [url]);
+    assert.equal(evidence[0].images.length, 1);
+    assert.equal(await findPostUrl(page, { text: caption, platform: 'threads', username: 'seller' }), url);
+    assert.deepEqual(await page.evaluate(collectThreadsEvidence, { text: caption, username: 'other' }), []);
+    assert.deepEqual(await page.evaluate(collectThreadsEvidence, { text: caption + ' Missing ending.' }), []);
+    // Images in another post or a nested reply cannot verify this caption.
+    await page.evaluate(() => document.querySelector('a[href$="/media"]').remove());
+    const withoutMedia = await page.evaluate(collectThreadsEvidence, { text: caption, postUrl: url });
+    assert.equal(withoutMedia[0].images.length, 0);
+    await page.setContent(`<div><a href="${url}">Parent</a><p>Unrelated parent.</p><div><a href="https://www.threads.com/@other/post/REPLY">Reply</a><p>${caption}</p></div></div>`);
+    assert.deepEqual(await page.evaluate(collectThreadsEvidence, { text: caption, postUrl: url }), []);
+    assert.equal(await findPostUrl(page, { text: caption, platform: 'threads', username: 'seller' }), null);
+  } finally { await browser.close(); }
+});
+
 test('research extracts visible discussion context, dates and separate Facebook comment evidence', { skip: !executablePath }, async () => {
   const { default: puppeteer } = await import('puppeteer-core');
   const browser = await puppeteer.launch({ executablePath, headless: true });
