@@ -284,7 +284,7 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
         if ((!['waiting', 'observing', 'engagement'].includes(result.status) && !(engagement && result.status === 'complete') && (!heldMessage || heldMessage !== lastHeldMessage)) || args.includes('--once') || dryRun) console.log(JSON.stringify(result, null, 2));
         lastHeldMessage = heldMessage;
         // Finish one due publication per platform before starting slow background work.
-        if (!engagementOnly && !dryRun && !args.includes('--once') && ['published', 'held', 'retry_scheduled'].includes(result.status) && require('./interval-schedule').hasDuePosts(state, product, Date.now())) continue;
+        if (!engagementOnly && !dryRun && !args.includes('--once') && ['published', 'held', 'retry_scheduled', 'platform_paused'].includes(result.status) && require('./interval-schedule').hasDuePosts(state, product, Date.now())) continue;
         if (rolling && !stopped) {
           const prepared = await rolling.tick().catch(err => ({ status: 'preparation_error', reason: err.message }));
           if (!['waiting', 'idle', 'disabled', 'complete', 'blocked'].includes(prepared.status)) console.log('[Preparation] ' + JSON.stringify(prepared));

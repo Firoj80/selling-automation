@@ -40,3 +40,8 @@ test('promotion mode sends due content without waiting on historical metrics',as
  const {ContentScheduler}=require('../src/content/content-scheduler');const state={posts:[{id:'due',platform:'facebook',type:'value',manuallyEdited:true,status:'pending',text:'Check the largest folders before deleting files.'}],createdAt:0,nextPostAt:0,learning:{nextMetricsAt:0,endAt:99999999}};
  const product={...base,schedule:{mode:'interval'}};const scheduler=new ContentScheduler({product,state,now:()=>1000,persist:()=>{},tracker:{refresh:()=>assert.fail('Historical metrics must not block due promotion'),shouldPublishProductForPlatform:()=>true},publish:async()=>({success:true,verified:true})});assert.equal((await scheduler.tick({dryRun:false})).status,'published');
 });
+
+test('uncertain promotion pauses only its platform and allows the other due platform',async()=>{
+ const {ContentScheduler}=require('../src/content/content-scheduler');const product={...base,schedule:{mode:'interval'}};const state={posts:['facebook','threads'].map(platform=>({id:platform,platform,type:'value',manuallyEdited:true,status:'pending',text:'Check the largest folders before deleting files.'})),createdAt:0,nextPostAt:0};let sends=0;
+ const scheduler=new ContentScheduler({product,state,now:()=>1000,persist:()=>{},publish:async(post,_,onSubmission)=>{sends++;onSubmission();return post.platform==='facebook'?{success:false,submitted:true,reason:'Verification timed out'}:{success:true,verified:true}}});assert.equal((await scheduler.tick({dryRun:false})).status,'platform_paused');assert.equal(state.posts[0].status,'needs_review');assert.ok(state.recovery.platformHolds.facebook);assert.equal((await scheduler.tick({dryRun:false})).post.platform,'threads');assert.equal(sends,2);
+});

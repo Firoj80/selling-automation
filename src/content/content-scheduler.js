@@ -118,7 +118,15 @@ class ContentScheduler {
         this.commit();
         return { status: 'retry_scheduled', platform: post.platform, nextAttemptAt: post.notBefore, reason: result.reason };
       }
-      post.status = 'needs_review'; post.result = result || { reason: 'Empty publisher response' }; this.commit();
+      post.status = 'needs_review'; post.result = result || { reason: 'Empty publisher response' };
+      if (this.product.publishing?.promote_every_post) {
+        this.state.recovery ||= {};
+        this.state.recovery.platformHolds ||= {};
+        this.state.recovery.platformHolds[post.platform] = { postIds: [post.id], reason: post.result.reason || 'Submission could not be verified', checkedAt: this.now() };
+        this.commit();
+        return { status: 'platform_paused', platform: post.platform, postId: post.id, reason: post.result.reason };
+      }
+      this.commit();
       throw new Error(`Publication requires review: ${post.result.reason || 'No verified live result'}. Reconcile before retrying.`);
     }
     post.status = 'published'; post.publishedAt = this.now(); post.result = result; post.submission = { version: 1, state: 'confirmed', at: this.now() };
