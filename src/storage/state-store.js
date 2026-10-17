@@ -53,8 +53,7 @@ class StateStore {
           stats: { ...INITIAL_STATE.stats, ...(parsed.stats || {}) }
         };
       } catch (err) {
-        logger.error(`Error loading state from ${this.filePath}, initializing fresh state`, err);
-        return JSON.parse(JSON.stringify(INITIAL_STATE));
+        throw new Error(`Saved engagement state is unreadable: ${this.filePath}. Preserve it and recover its history before running.`, { cause: err });
       }
     }
     return JSON.parse(JSON.stringify(INITIAL_STATE));
@@ -63,9 +62,7 @@ class StateStore {
   saveState() {
     try {
       this.state.lastUpdated = new Date().toISOString();
-      const tempPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
-      fs.writeFileSync(tempPath, JSON.stringify(this.state, null, 2), "utf8");
-      fs.renameSync(tempPath, this.filePath);
+      require('../content/content-store').save(this.filePath, this.state);
     } catch (err) {
       logger.error(`Failed saving state to ${this.filePath}`, err);
     }

@@ -1,5 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+function writeFlushed(file, data) {
+  const fd = fs.openSync(file, 'w');
+  try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); }
+  finally { fs.closeSync(fd); }
+}
 function lockGuard(root, action) {
   const dir = path.join(root, 'private');
   fs.mkdirSync(dir, { recursive: true });
@@ -15,7 +20,17 @@ function lockGuard(root, action) {
 function save(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
+  const serialized = JSON.stringify(data, null, 2) + '\n';
+  if (fs.existsSync(file)) {
+    const previous = fs.readFileSync(file, 'utf8');
+    try {
+      JSON.parse(previous);
+      const backupTmp = `${file}.last-good.${process.pid}.tmp`;
+      writeFlushed(backupTmp, previous); fs.renameSync(backupTmp, `${file}.last-good`);
+    }
+    catch (err) { if (!(err instanceof SyntaxError)) throw err; }
+  }
+  writeFlushed(tmp, serialized);
   fs.renameSync(tmp, file);
 }
 async function withLock(root, action) {

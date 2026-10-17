@@ -43,6 +43,14 @@ class RollingContent {
       const report = this.state.learning ? analyzeContent(this.state, this.state.learning.settings, this.now()) : null;
       const assignment = assignments(this.product, 1, this.state.posts.length, report)[0];
       assignment.platform = job.platform;
+      const platformPosts = this.state.posts.filter(p => p.platform === job.platform).length;
+      assignment.recommendation = ((platformPosts + 1) % 2 === 0) && ((platformPosts + 1) % 5 !== 0);
+      // Instagram (and any media-required platform) must have media set in the
+      // assignment so generateContentQueue includes it in the accepted draft.
+      // Without this the engine validates the post as text-only and throws.
+      if (job.platform === 'instagram' || require('./media-settings').mediaSettings(this.product).enabled) {
+        assignment.media = { required: true, status: 'pending', attempts: 0, textHash: '' };
+      }
       const preferred = report?.platforms[job.platform]?.preferredTopic;
       if (Number.isInteger(preferred)) { assignment.topicIndex = preferred; assignment.topic = this.product.product.key_topics[preferred]; }
       const learned = this.externalLearning?.snapshot();

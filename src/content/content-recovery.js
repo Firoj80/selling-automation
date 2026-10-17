@@ -30,6 +30,8 @@ function recoverStaleLock(root) {
 }
 function reconcile(root, { id, action = 'requeue', postUrl = null }) {
   return require('./content-store').lockGuard(root, () => {
+    if (!['absent', 'stale'].includes(inspect(root).lock.status)) throw new Error('Stop the active worker before reconciling a publication');
+    if (!['published', 'discard', 'quarantine', 'requeue'].includes(action)) throw new Error('Unknown reconciliation action');
     const file = path.join(root, 'private/product-content.json');
     if (!fs.existsSync(file)) throw new Error('State file does not exist');
     const state = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -55,6 +57,10 @@ function reconcile(root, { id, action = 'requeue', postUrl = null }) {
     } else if (action === 'discard') {
       post.status = 'held';
       post.holdReason = 'Reconciled as discarded';
+    } else if (action === 'quarantine') {
+      post.status = 'held';
+      post.quarantinedAt = Date.now();
+      post.holdReason = 'Unverified previous submission quarantined. Never retry automatically; retain platform evidence for review.';
     } else {
       post.status = 'pending';
       delete post.attemptedAt;

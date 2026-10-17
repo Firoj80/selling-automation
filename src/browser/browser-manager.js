@@ -140,7 +140,11 @@ class BrowserManager {
         try {
           this.browser = await puppeteer.connect({
             browserURL: this.cdpUrl,
-            defaultViewport: null
+            defaultViewport: null,
+            protocolTimeout: 15000,
+            // A sleeping/restored tab can stall initial CDP attachment forever.
+            // New automation tabs share the same saved browser login session.
+            targetFilter: target => target.type() !== 'page' || target.url() === 'about:blank'
           });
 
           const version = await this.browser.version();

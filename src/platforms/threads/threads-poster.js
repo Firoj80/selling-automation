@@ -248,12 +248,10 @@ class ThreadsPoster {
       });
 
       if (addBtnHandle && addBtnHandle.asElement()) {
-        const box = await addBtnHandle.boundingBox();
-        if (box && box.width > 0 && box.height > 0) {
-          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-        } else {
-          await addBtnHandle.click();
-        }
+        await page.evaluate(el => {
+          el.scrollIntoView({ block: 'center', behavior: 'instant' });
+          el.click();
+        }, addBtnHandle);
 
         const secondBoxAppeared = await page.waitForFunction(() => {
           const dialog = document.querySelector('div[role="dialog"], [aria-modal="true"]');
@@ -263,13 +261,21 @@ class ThreadsPoster {
         }, { timeout: 8000 }).catch(() => null);
 
         if (secondBoxAppeared) {
+          await page.evaluate(() => {
+            const dialog = document.querySelector('div[role="dialog"], [aria-modal="true"]');
+            const boxes = dialog ? dialog.querySelectorAll('div[contenteditable="true"]') : [];
+            if (boxes[1]) {
+              boxes[1].scrollIntoView({ block: 'center', behavior: 'instant' });
+            }
+          }).catch(() => {});
           const secondBox = await require('../composer-ready').waitForComposerReady(page, { platform: 'threads', editorIndex: 1 });
           await require('../composer-text').writeComposerText(page, secondBox, replyText);
+          await require('../composer-text').assertComposerText(page, secondBox, replyText);
         } else {
-          logger.warn("[THREADS POSTER] Second composer textbox did not appear after 'Add to thread' click; continuing with main thread.");
+          throw new Error('Product reply composer did not open; submission blocked');
         }
       } else {
-        logger.warn("[THREADS POSTER] Could not find 'Add to thread' button in modal dialog; continuing with main thread.");
+        throw new Error('Add to thread control missing; product reply required before submission');
       }
     }
 
@@ -417,6 +423,10 @@ class ThreadsPoster {
     // Secondary Strict Profile Feed Verification (Mandatory User Requirement)
     // Confirm the post actually rendered live on the authenticated profile feed DOM
     const profileVerify = await this.verifyPostOnProfile(page, postText, options.username);
+    if (profileVerify.verified && options.threadReply) {
+      try { await require('./verify-product-reply').verifyProductReply(page, { postUrl: profileVerify.postUrl, text: options.threadReply, username: options.username }); }
+      catch (err) { profileVerify.verified = false; profileVerify.reason = err.message; }
+    }
     let mediaVerification = {};
     if (profileVerify.verified && options.mediaPaths?.length) {
       try { mediaVerification = await require('../verify-image-post').verifyImagePost(page, { text: postText, platform: 'threads', postUrl: profileVerify.postUrl }, options.mediaPaths.length); }

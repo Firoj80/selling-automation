@@ -45,7 +45,7 @@ class ContentTracker {
   shouldStartSellingOnPlatform(platform) {
     if (!this.product.product.sales_url) return false;
     if (!this.pilotReady(platform)) return false;
-    const platformValuePosts = this.publishedPosts().filter(p => p.platform === platform && p.type === 'value').length;
+    const platformValuePosts = this.publishedPosts().filter(p => p.platform === platform && (p.publication?.type || p.type) === 'value').length;
     const platformViews = this.getViewsForPlatform(platform);
     const threshold = this.getThresholdForPlatform(platform);
     return platformValuePosts >= sellingSettings(this.product, platform).minimum_value_posts &&
@@ -72,7 +72,7 @@ class ContentTracker {
   getProductMentionRatio(platform = this.product.strategy.platforms[0]) {
     const interval = sellingSettings(this.product, platform).one_product_post_every;
     const recent = this.publishedPosts().filter(p => p.platform === platform).slice(-interval);
-    return { productPosts: recent.filter(p => p.type === 'product').length, totalPosts: recent.length, interval };
+    return { productPosts: recent.filter(p => (p.publication?.type || p.type) === 'product').length, totalPosts: recent.length, interval };
   }
   shouldPublishProduct() {
     return this.product.strategy.platforms.some(platform => this.shouldPublishProductForPlatform(platform));
@@ -82,12 +82,13 @@ class ContentTracker {
    * Checks per-platform view threshold and per-platform product post cooldown.
    */
   shouldPublishProductForPlatform(platform) {
+    if (this.product.publishing?.promote_every_post) return !!this.product.product.sales_url;
     if (!this.shouldStartSellingOnPlatform(platform)) return false;
     const { interval } = this.getProductMentionRatio(platform);
     const recentOnPlatform = this.publishedPosts()
       .filter(p => p.platform === platform)
       .slice(-(interval - 1));
-    return !recentOnPlatform.some(p => p.type === 'product');
+    return !recentOnPlatform.some(p => (p.publication?.type || p.type) === 'product');
   }
   /**
    * Returns a per-platform selling status object — useful for content:status display.
@@ -101,7 +102,7 @@ class ContentTracker {
       status[platform] = {
         criteria: sellingSettings(this.product, platform),
         pilotReady: this.pilotReady(platform),
-        publishedValuePosts: this.publishedPosts().filter(p => p.platform === platform && p.type === 'value').length,
+        publishedValuePosts: this.publishedPosts().filter(p => p.platform === platform && (p.publication?.type || p.type) === 'value').length,
         hasSalesUrl: !!this.product.product.sales_url,
         ratio: this.getProductMentionRatio(platform),
         views,
@@ -119,7 +120,7 @@ class ContentTracker {
     return {
       totalViews: this.getTotalViews(),
       publishedPosts: posts.length,
-      valuePosts: posts.filter(p => p.type === 'value').length,
+      valuePosts: posts.filter(p => (p.publication?.type || p.type) === 'value').length,
       postsWithKnownViews: posts.filter(p => this.hasVerifiedMetrics(p) && Number.isSafeInteger(p.metrics.views)).length,
       sellingEligible: this.shouldStartSelling(),
       nextProductEligible: this.shouldPublishProduct(),
@@ -129,7 +130,7 @@ class ContentTracker {
   }
   async getPostMetrics(post) {
     if (!this.reader) throw new Error('Browser metrics reader is not configured');
-    return this.reader.read(post);
+    return this.reader.read({ ...post, text: post.result?.text || post.publication?.text || post.text });
   }
   async refresh({ force = false } = {}) {
     for (const post of this.publishedPosts()) {

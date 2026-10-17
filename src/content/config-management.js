@@ -65,7 +65,7 @@ function changedProduct(product, key, value) {
   const researchKey = /^research\.(enabled|allow_partial|minimum_records_per_platform|minimum_authors_per_platform|minimum_discussions_per_platform|max_searches_per_platform_per_run|max_discussions_per_search|max_relevance_checks_per_search|freshness_days)$/.test(key);
   const writingKey = /^writing\.(humanizer_enabled|voice_examples_file|forbid_em_dash|fallback_policy)$/.test(key);
   const mediaKey = /^(content_media\.(enabled|max_attempts|retry_minutes|text_only_fallback|width|height|provider|image_fallback|image_timeout_seconds|max_requests_per_day)|rolling_content\.enabled)$/.test(key);
-  if (!editable.test(key) && !researchKey && !writingKey && !mediaKey && key !== 'publishing.disabled_platforms') throw new Error('This setting is not editable. See COMMANDS.md for settings commands; campaign facts and platform selection require a new campaign.');
+    if (!editable.test(key) && !researchKey && !writingKey && !mediaKey && !['publishing.disabled_platforms', 'publishing.promote_every_post'].includes(key)) throw new Error('This setting is not editable. See COMMANDS.md for settings commands; campaign facts and platform selection require a new campaign.');
   const next = structuredClone(product);
   const parts = key.split('.');
   let target = next;

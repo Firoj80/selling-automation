@@ -62,3 +62,7 @@ Browser adapters use platform DOM details and may need maintenance when websites
 - `npm run test:content:browser`: local browser fixtures. Set `CONTENT_TEST_BROWSER` if executable detection fails.
 
 Tests use AI doubles and local DOM fixtures. They do not verify authenticated live platform operation or actual AI writing quality. Review generated drafts and account behavior before unattended operation.
+
+Set `publishing.promote_every_post` to `true` to include product promotion with every outgoing post, including saved edited drafts. Threads uses a connected reply with the exact sales URL, Facebook includes the product and URL in the post, and Instagram adds the product and “Check bio for link” to its caption. The original checked image caption remains intact; the exact outgoing copy is saved separately before submission. Threads requires the complete authored reply and exact link to be visible on the parent thread before reporting success.
+
+State saves flush the temporary file before replacing the saved JSON and keep a `.last-good` snapshot. If saved engagement state cannot be read, automation stops instead of silently forgetting prior actions. Recovery from an older backup must reconcile later submit attempts against the platform before any resend.

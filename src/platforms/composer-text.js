@@ -6,10 +6,14 @@ async function assertComposerText(page, editor, text) {
 async function writeComposerText(page, editor, text) {
   if (!text?.trim()) throw new Error('A nonempty caption is required');
   await editor.click();
-  await page.keyboard.down('Control');
-  await page.keyboard.press('KeyA');
-  await page.keyboard.up('Control');
-  await page.keyboard.press('Backspace');
+  const current = await page.evaluate(el => el.value === undefined ? el.innerText : el.value, editor);
+  const normalizedCurrent = String(current || '').replace(/\u200b/g, '').trim();
+  if (normalizedCurrent.length > 0) {
+    await page.keyboard.down('Control');
+    await page.keyboard.press('KeyA');
+    await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+  }
   // One native text insertion avoids dropped keystrokes while React rerenders.
   await page.keyboard.sendCharacter(text);
   await page.waitForFunction((el, expected) => {

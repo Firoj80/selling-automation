@@ -15,7 +15,7 @@ const { LearningEngine } = require('../knowledge/learning-engine');
 const management = require('./config-management');
 async function publish(post, product, onSubmission) {
   if (!require('./publishing-settings').publishingEnabled(product, post.platform)) throw new Error(`Publishing is disabled for ${post.platform}`);
-  let postToPublish = { ...post };
+  let postToPublish = { ...post, ...(post.publication || {}) };
   if (['threads', 'x'].includes(postToPublish.platform) && postToPublish.type === 'product') {
     if (!postToPublish.threadReply) {
       postToPublish.threadReply = require('./content-engine').formatProductThreadReply(product);
@@ -39,7 +39,7 @@ async function publish(post, product, onSubmission) {
   if (!postToPublish.media?.path || postToPublish.media?.status !== 'ready') {
     throw new Error(`All platforms require an image attachment; text-only publishing is not permitted on ${postToPublish.platform}`);
   }
-  if (postToPublish.media?.required && postToPublish.media.status !== 'text_only' && !require('./content-media').validMedia(postToPublish, path.resolve(__dirname, '../..'))) throw new Error('Required image is missing, invalid or does not match the caption');
+  if (postToPublish.media?.required && postToPublish.media.status !== 'text_only' && !require('./content-media').validMedia(post, path.resolve(__dirname, '../..'))) throw new Error('Required image is missing, invalid or does not match the caption');
   const textToSend = isX && postToPublish.text.length > 280 ? require('./content-engine').condenseForX(postToPublish.text) : postToPublish.text;
   const options = { text: textToSend, onSubmission, ...(postToPublish.threadReply ? { threadReply: postToPublish.threadReply } : {}), pillar: `product_${postToPublish.type}`, format: postToPublish.media?.status === 'ready' ? 'MEDIA' : 'TEXT_ONLY', username: username,
     ...(postToPublish.media?.status === 'ready' ? { mediaPaths: [postToPublish.media.path] } : {}) };
@@ -135,7 +135,7 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
         result = await recovery.autoRecover(root);
       } else if (args[0] === '--reconcile') {
         const id = args[1];
-        if (!id) throw new Error('Usage: recover --reconcile POST_ID [--requeue|--discard|--published URL]');
+        if (!id) throw new Error('Usage: recover --reconcile POST_ID [--requeue|--discard|--quarantine|--published URL]');
         const opt = args[2] || '--requeue';
         if (opt === '--published') {
           const url = args[3];
@@ -143,13 +143,15 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
           result = recovery.reconcile(root, { id, action: 'published', postUrl: url });
         } else if (opt === '--discard') {
           result = recovery.reconcile(root, { id, action: 'discard' });
+        } else if (opt === '--quarantine') {
+          result = recovery.reconcile(root, { id, action: 'quarantine' });
         } else if (opt === '--requeue' || opt === '--reset') {
           result = recovery.reconcile(root, { id, action: 'requeue' });
         } else {
-          throw new Error('Supported reconcile options: --requeue, --discard, --published URL');
+          throw new Error('Supported reconcile options: --requeue, --discard, --quarantine, --published URL');
         }
       } else {
-        throw new Error('Supported: recover --inspect | --stale-lock | --auto | --reconcile POST_ID [--requeue|--discard|--published URL]');
+        throw new Error('Supported: recover --inspect | --stale-lock | --auto | --reconcile POST_ID [--requeue|--discard|--quarantine|--published URL]');
       }
     }
     console.log(JSON.stringify(result, null, 2));
@@ -288,7 +290,8 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
           if (!['waiting', 'idle', 'disabled', 'complete', 'blocked'].includes(prepared.status)) console.log('[Preparation] ' + JSON.stringify(prepared));
         }
         if (engagement && Date.now() >= nextEngagementAt && !stopped) {
-          const platforms = product.strategy.platforms.filter(platform => !state.recovery?.platformHolds?.[platform]);
+          const { disabledPlatforms } = require('./publishing-settings');
+          const platforms = product.strategy.platforms.filter(platform => !state.recovery?.platformHolds?.[platform] && !disabledPlatforms(product).includes(platform));
           if (!platforms.length) { await pause(1000); continue; }
           const cycleElapsedMs = Date.now() - engagementCycleStart;
           const PLATFORM_DURATION = 3 * 60000;

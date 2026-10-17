@@ -175,3 +175,22 @@ test('Instagram waits for delayed Create and Post controls and ignores unrelated
     assert.equal(await page.evaluate(() => window.clicks), 2);
   } finally { await browser.close(); }
 });
+
+test('Threads product verification binds full caption, author and exact destination to one reply', {skip:!executablePath}, async()=>{
+ const {default:puppeteer}=await import('puppeteer-core');const browser=await puppeteer.launch({executablePath,headless:true});
+ try{
+  const page=await browser.newPage();await page.setRequestInterception(true);page.on('request',req=>req.respond({status:200,contentType:'text/html',body:'<html><body></body></html>'}));
+  const parent='https://www.threads.com/@seller/post/PARENT',reply='https://www.threads.com/@seller/post/REPLY',sales='https://example.com/product?ref=post';
+  await page.goto(parent);const input={postUrl:parent,username:'seller',text:'Storage App. $5 one-time.\nFind large folders safely.\n'+sales};
+  const {collectProductReplyEvidence,verifyProductReply}=require('../src/platforms/threads/verify-product-reply');
+  const fixture=(author='seller',caption='Storage App. $5 one-time.<br>Find large folders safely.',url=sales)=>`<main><section><a href="${parent}">Parent</a><p>Useful storage tip.</p></section><section id="reply"><a href="https://www.threads.com/@${author}/post/REPLY">Now</a><div>${caption}<br><a href="${url}">example.com</a></div></section></main>`;
+  await page.setContent(fixture());assert.equal((await page.evaluate(collectProductReplyEvidence,input))[0].postUrl,reply);
+  await page.setContent(fixture('other'));assert.deepEqual(await page.evaluate(collectProductReplyEvidence,input),[]);
+  await page.setContent(fixture('seller','Storage App. $5 one-time.'));assert.deepEqual(await page.evaluate(collectProductReplyEvidence,input),[]);
+  await page.setContent(fixture('seller',undefined,'https://example.com.evil.invalid/product?ref=post'));assert.deepEqual(await page.evaluate(collectProductReplyEvidence,input),[]);
+  await page.setContent(fixture('seller',undefined,'https://example.com/different'));assert.deepEqual(await page.evaluate(collectProductReplyEvidence,input),[]);
+  await page.setContent(fixture('seller',undefined,'https://l.threads.com/?u='+encodeURIComponent(sales)));assert.equal((await page.evaluate(collectProductReplyEvidence,input)).length,1);
+  await page.setContent(fixture());await page.evaluate(()=>{const a=document.querySelector('#reply div a');document.body.append(a)});assert.deepEqual(await page.evaluate(collectProductReplyEvidence,input),[]);
+  const stub={goto:async()=>{},evaluate:async()=>[]};await assert.rejects(verifyProductReply(stub,input,{attempts:1,delayMs:0}),/complete product reply/);
+ }finally{await browser.close()}
+});

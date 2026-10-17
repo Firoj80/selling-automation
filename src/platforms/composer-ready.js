@@ -25,6 +25,12 @@ function composerReadyElement({ platform, phase = 'caption', stableMs = 500, edi
   if (!editor || !scope || editor.disabled || editor.readOnly || editor.getAttribute('aria-disabled') === 'true' || scope.closest('[aria-busy="true"]') || scope.querySelector('[data-loading="true"]')) return reject();
   if (!(platform === 'instagram' && phase === 'media') && !visible(editor)) return reject();
   if (!(platform === 'instagram' && phase === 'media')) {
+    if (typeof editor.scrollIntoView === 'function') {
+      const initialBox = editor.getBoundingClientRect();
+      if (initialBox.top < 0 || initialBox.bottom > innerHeight || initialBox.left < 0 || initialBox.right > innerWidth) {
+        try { editor.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); } catch (_) {}
+      }
+    }
     const box = editor.getBoundingClientRect();
     const hit = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, box.x + box.width / 2)), Math.min(innerHeight - 1, Math.max(0, box.y + box.height / 2)));
     if (!hit || !(hit === editor || editor.contains(hit))) return reject();

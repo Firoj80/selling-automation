@@ -48,7 +48,7 @@ class ContentScheduler {
     if (this.now() < due) return { status: 'waiting', nextPostAt: due };
     if (dryRun) {
       const eligible = this.eligible(post);
-      const plannedType = post.type === 'product' && !eligible ? post.valueText && !post.manuallyEdited ? 'value' : 'held' : eligible && !post.manuallyEdited ? 'product' : post.type;
+      const plannedType = this.product.publishing?.promote_every_post ? 'product' : post.type === 'product' && !eligible ? post.valueText && !post.manuallyEdited ? 'value' : 'held' : eligible && !post.manuallyEdited ? 'product' : post.type;
       return { status: 'preview', post, nextPostAt: due, expiredSlot: !timing.isInterval(this.product) && !!learning && this.now() > due + learning.settings.slot_grace_minutes * 60000, plannedType, engagement: this.tracker?.summary() };
     }
     if (this.tracker) await this.tracker.refresh();
@@ -62,7 +62,7 @@ class ContentScheduler {
       const last = Math.max(0, ...this.state.posts.filter(p => p.platform === post.platform && p.status === 'published').map(p => p.publishedAt || 0));
       if (last && this.now() < last + (policy.minimum_gap_minutes ?? 30) * 60000) return { status: 'waiting', nextPostAt: last + (policy.minimum_gap_minutes ?? 30) * 60000 };
     }
-    if (this.eligible(post) && !post.manuallyEdited && post.type !== 'product') {
+    if (!this.product.publishing?.promote_every_post && this.eligible(post) && !post.manuallyEdited && post.type !== 'product') {
       if (!this.engine) throw new Error('Product content generator is not configured');
       const generated = await this.engine.generateProductPost(this.product, { platform: post.platform, copy: this.copy,
         previousPosts: this.tracker.publishedPosts().filter(p => p.type === 'product').map(p => p.text) });
@@ -73,7 +73,7 @@ class ContentScheduler {
       this.commit();
       if (post.status === 'needs_edit') return { status: 'held', reason: 'Generated product draft requires editing', post };
     }
-    if (post.type === 'product' && !this.eligible(post)) {
+    if (!this.product.publishing?.promote_every_post && post.type === 'product' && !this.eligible(post)) {
       if (!post.valueText || post.manuallyEdited) {
         post.status = 'held'; post.holdReason = 'Product draft is not eligible on this platform'; this.commit();
         return { status: 'held', post };
@@ -95,6 +95,11 @@ class ContentScheduler {
       if (post.media.textHash !== require('./content-media').textHash(post.text)) post.media = { required: true, status: 'pending', attempts: 0, textHash: require('./content-media').textHash(post.text) };
       post.status = 'needs_media'; this.commit();
       return { status: 'held', reason: 'Caption image must be prepared before publishing', post };
+    }
+    try { post.publication = require('./publication-content').publicationContent(post, this.product); }
+    catch (err) {
+      post.status = 'needs_edit'; post.writing = { ...post.writing, status: 'needs_edit', reason: err.message }; this.commit();
+      return { status: 'held', reason: err.message, post };
     }
     post.status = 'publishing'; post.attemptedAt = this.now(); post.submission = { version: 1, state: 'preparing', at: this.now() }; this.commit();
     let result;

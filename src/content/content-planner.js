@@ -23,7 +23,11 @@ function assignments(product, count, offset = 0, report = null) {
     const preferred = report?.platforms[platform]?.preferredTopic;
     const exploring = !!report && Math.floor(i / platforms.length) % 5 === 4;
     const topicIndex = !exploring && Number.isInteger(preferred) ? preferred : (report ? round % product.product.key_topics.length : balancedTopic);
-    return { platform, topicIndex, topic: product.product.key_topics[topicIndex], hookId: HOOKS[Math.floor(round / 2) % HOOKS.length], format: 'text',
+    const hasMedia = platform === 'instagram' || require('./media-settings').mediaSettings(product).enabled;
+    const platformIndex = round + 1;
+    const recommendation = (platformIndex % 2 === 0) && (platformIndex % 5 !== 0);
+    return { platform, topicIndex, topic: product.product.key_topics[topicIndex], hookId: HOOKS[Math.floor(round / 2) % HOOKS.length], format: hasMedia ? 'media' : 'text', recommendation,
+      ...(hasMedia ? { media: { required: true, status: 'pending', attempts: 0, textHash: '' } } : {}),
       mode: exploring ? 'explore' : Number.isInteger(preferred) ? 'promising' : 'balanced', sourceRefs: [`product.key_topics[${topicIndex}]`] };
   });
 }

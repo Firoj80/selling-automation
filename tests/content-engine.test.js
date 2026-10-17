@@ -192,3 +192,45 @@ test('setup preserves existing knowledge and refuses to overwrite campaign histo
     assert.equal(fs.existsSync(path.join(root, 'private', 'product-content.lock')), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('two-tier product pushing: text-only recommendation on 2nd content and links on 5th post', () => {
+  const { assignments } = require('../src/content/content-planner');
+  const dummyProduct = {
+    strategy: { platforms: ['threads'], post_frequency_hours: 1, value_posts_before_selling: 0, view_threshold_to_sell: 0, product_mention_ratio: '1 in 5 posts' },
+    product: { name: 'Scan My Disk', sales_url: 'https://scanmydisk.com/', key_topics: ['Storage Tips', 'Duplicate Files'] }
+  };
+
+  // Check assignments cadence: 1: false, 2: true, 3: false, 4: true, 5: false (5th is hard pitch), 6: true
+  const slots = assignments(dummyProduct, 6);
+  assert.equal(slots[0].recommendation, false, '1st post is pure value');
+  assert.equal(slots[1].recommendation, true, '2nd post has text-only recommendation');
+  assert.equal(slots[2].recommendation, false, '3rd post is pure value');
+  assert.equal(slots[3].recommendation, true, '4th post has text-only recommendation');
+  assert.equal(slots[4].recommendation, false, '5th post is reserved for product pitch with links');
+  assert.equal(slots[5].recommendation, true, '6th post has text-only recommendation');
+
+  // Text-only recommendation post passes when mentioning product with NO link
+  assert.doesNotThrow(() => validatePost({
+    platform: 'threads',
+    type: 'value',
+    recommendation: true,
+    text: 'Follow this guide to clear temp folders, or try Scan My Disk to visualize disk space automatically.'
+  }, dummyProduct));
+
+  // Text-only recommendation post FAILS if it includes a link
+  assert.throws(() => validatePost({
+    platform: 'threads',
+    type: 'value',
+    recommendation: true,
+    text: 'Follow this guide, or try Scan My Disk at https://scanmydisk.com/'
+  }, dummyProduct), /promotional CTA/);
+
+
+  // Pure value post (not recommendation) FAILS if it mentions the product
+  assert.throws(() => validatePost({
+    platform: 'threads',
+    type: 'value',
+    recommendation: false,
+    text: 'Try Scan My Disk today.'
+  }, dummyProduct), /Value post contains a product mention/);
+});

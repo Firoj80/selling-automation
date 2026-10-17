@@ -39,3 +39,5 @@ Run from the project directory. Enable live publishing deliberately in `.env` af
 | Configuration GUI | `node gui-server.js` |
 
 Post preview is offline. Engagement preview reads the browser and calls AI but sends nothing. State-changing commands share the campaign lock. GUI saves require automation to be stopped. Preserve existing campaign/checkpoint files before replacing a campaign.
+
+Quarantine an unresolved submission without claiming it published or retrying it: `node threads-agent.js recover --reconcile ID --quarantine`. Its evidence remains saved, and other drafts on the platform may proceed. Stop the worker before reconciling.

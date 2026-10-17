@@ -142,7 +142,9 @@ class ProductBrowserAdapter {
   }
   page(platform, research = false) {
     if (research && this.browser.getResearchPage) return this.browser.getResearchPage(platform);
-    return this.browser[{ threads: 'getThreadsPage', facebook: 'getFacebookPage' }[platform]]({ skipInitialNavigation: true });
+    const method = { threads: 'getThreadsPage', facebook: 'getFacebookPage', instagram: 'getInstagramPage', x: 'getXPage' }[platform];
+    if (!method || typeof this.browser[method] !== 'function') throw new Error(`Platform ${platform} does not support browser page access in adapter`);
+    return this.browser[method]({ skipInitialNavigation: true });
   }
   async expandResearchText(page) {
     const controls = await page.$$('[role="main"] [data-ad-preview="message"] [role="button"], [role="main"] [data-ad-preview="message"] button');
@@ -300,12 +302,14 @@ class ProductBrowserAdapter {
       }
       const query = encodeURIComponent(product.product.key_topics[this.scanIndex % product.product.key_topics.length]);
       const searchUrl = { threads: `https://www.threads.com/search?q=${query}&serp_type=default`, facebook: `https://www.facebook.com/search/posts/?q=${query}` }[platform];
-      try {
-        const found = await this.readPublic(platform, searchUrl);
-        observations.push(...found.slice(0, 20).map(item => ({ ...item, topic: product.product.key_topics[this.scanIndex % product.product.key_topics.length] })));
-        items.push(...found.slice(0, 3));
+      if (searchUrl) {
+        try {
+          const found = await this.readPublic(platform, searchUrl);
+          observations.push(...found.slice(0, 20).map(item => ({ ...item, topic: product.product.key_topics[this.scanIndex % product.product.key_topics.length] })));
+          items.push(...found.slice(0, 3));
+        }
+        catch (err) { errors.push({ platform, kind: 'topics', reason: err.message }); }
       }
-      catch (err) { errors.push({ platform, kind: 'topics', reason: err.message }); }
     }
     this.scanIndex++;
     const seen = new Set();
