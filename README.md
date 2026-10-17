@@ -39,6 +39,8 @@ The live runtime checks connectivity about every 15 seconds and pauses publishin
 
 All four publishers wait for an editable, unobstructed composer with stable layout before typing or attaching media. Instagram's image-selection screen and full-page caption editor are supported separately. Startup automatically archives a stale lock only after verifying that its process has stopped.
 
+Instagram waits for its Create menu and a stable media composer before uploading. During a run, confirmed pre-submission failures retain the draft and retry after 2 minutes, increasing to a maximum 15-minute delay. Other due platforms continue, and later drafts on the affected platform wait behind its retry. Uncertain submissions still require reconciliation.
+
 `start-automation.bat` also runs automatic publication recovery. A durable checkpoint is saved before each submit click. Failures known to precede submission are requeued; posts verified on the platform by caption, author and image are marked published. If the result remains uncertain, only that platform is paused while the others can start. The paused platform is checked again on the next startup. Recovery preserves a backup and history and never blindly resends an uncertain post. Manual `recover --reconcile` clears the platform hold when all its uncertain posts have been resolved.
 
 Promotions depend on the sales URL, value-post/view thresholds and promotion spacing. Thresholds support platform overrides; unknown views remain unknown. The initial learning pilot is value-only. Later content uses observed performance and validated public patterns. Rolling preparation produces replacements after verified publications, subject to campaign limits.

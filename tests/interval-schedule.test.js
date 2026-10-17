@@ -135,3 +135,25 @@ test('new interval campaigns start immediately and retain pilot quantity without
   assert.equal((await f.scheduler.tick({dryRun:false})).post.platform,'facebook');
   assert.equal(f.sends(),2);
  });
+
+test('confirmed pre-submission failure backs off while another platform publishes', async () => {
+  const f = fixture([draft('first','threads'), draft('other','facebook'), draft('later','threads')]);
+  let attempts = 0;
+  f.scheduler.publish = async post => { attempts++; return post.platform === 'threads' ? { success: false, submitted: false, reason: 'Composer loading' } : { success: true, verified: true }; };
+  assert.equal((await f.scheduler.tick({dryRun:false})).status, 'retry_scheduled');
+  assert.equal(f.state.posts[0].status, 'pending');
+  assert.equal(f.state.posts[0].notBefore, NOW + 120000);
+  assert.equal((await f.scheduler.tick({dryRun:false})).post.platform, 'facebook');
+  assert.equal((await f.scheduler.tick({dryRun:false})).status, 'waiting');
+  assert.equal(attempts, 2);
+  f.setTime(NOW + 120000);
+  assert.equal((await f.scheduler.tick({dryRun:false})).status, 'retry_scheduled');
+  assert.equal(f.state.posts[0].publishRetries, 2);
+});
+
+test('a submit checkpoint forbids retry even when publisher claims submitted=false', async () => {
+  const f = fixture([draft('first','threads')]);
+  f.scheduler.publish = async (_, __, onSubmission) => { onSubmission(); return { success:false, submitted:false }; };
+  await assert.rejects(f.scheduler.tick({dryRun:false}), /review/);
+  assert.equal(f.state.posts[0].status, 'needs_review');
+});

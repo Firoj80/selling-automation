@@ -101,6 +101,17 @@ class ContentScheduler {
     const onSubmission = () => { post.submission = { version: 1, state: 'may_have_submitted', at: this.now() }; this.commit(); };
     try { result = await this.publish(post, this.product, onSubmission); } catch (err) { result = { success: false, reason: err.message }; }
     if (!result?.success || !result.verified || result.simulated) {
+      if (result?.submitted === false && !result.simulated && post.submission.state === 'preparing') {
+        post.publishRetries = (post.publishRetries || 0) + 1;
+        post.revisions ||= [];
+        post.revisions.push({ at: this.now(), action: 'pre_submission_retry', result });
+        post.status = 'pending';
+        post.notBefore = this.now() + Math.min(15, post.publishRetries * 2) * 60000;
+        post.scheduledAt = Math.max(post.scheduledAt || 0, post.notBefore);
+        delete post.submission; delete post.attemptedAt; delete post.result;
+        this.commit();
+        return { status: 'retry_scheduled', platform: post.platform, nextAttemptAt: post.notBefore, reason: result.reason };
+      }
       post.status = 'needs_review'; post.result = result || { reason: 'Empty publisher response' }; this.commit();
       throw new Error(`Publication requires review: ${post.result.reason || 'No verified live result'}. Reconcile before retrying.`);
     }

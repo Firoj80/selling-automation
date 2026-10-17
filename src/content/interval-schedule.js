@@ -2,6 +2,7 @@ const HOUR = 3600000;
 const { publishingEnabled } = require('./publishing-settings');
 const isInterval = product => product.schedule?.mode === 'interval';
 const intervalMs = product => product.strategy.post_frequency_hours * HOUR;
+const pendingOrder = (a, b) => Number(!!b.publishRetries) - Number(!!a.publishRetries) || (a.scheduledAt || 0) - (b.scheduledAt || 0);
 function lastPublished(state, platform) {
   const posts = state.posts.filter(p => p.platform === platform && p.status === 'published' && p.result?.verified && !p.result.simulated);
   if (posts.some(p => !Number.isFinite(p.publishedAt))) throw new Error(`Missing actual publication time for ${platform}; review publication history before interval posting.`);
@@ -9,7 +10,7 @@ function lastPublished(state, platform) {
 }
 function candidates(state, product) {
   const seen = new Set();
-  return state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)).flatMap(post => {
+  return state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort(pendingOrder).flatMap(post => {
     if (seen.has(post.platform)) return [];
     seen.add(post.platform);
     const last = lastPublished(state, post.platform);
@@ -18,7 +19,7 @@ function candidates(state, product) {
 }
 function projectQueue(state, product, now) {
   const next = {};
-  const pending = state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+  const pending = state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort(pendingOrder);
   for (const post of pending) {
     if (next[post.platform] === undefined) {
       const last = lastPublished(state, post.platform);

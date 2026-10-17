@@ -56,49 +56,8 @@ class InstagramPoster {
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      // Check if file input is already present
-      let fileInput = await page.$('input[type="file"]');
-
-      if (!fileInput) {
-        logger.info("[INSTAGRAM POSTER] Triggering 'Create' -> 'Post' creator...");
-        const createClicked = await page.evaluate(() => {
-          const svg = document.querySelector('svg[aria-label="New post"], svg[aria-label="Create"]');
-          if (svg) {
-            const btn = svg.closest('a, div[role="button"], button') || svg.parentElement;
-            if (btn) { btn.click(); return true; }
-          }
-          const els = Array.from(document.querySelectorAll('a, div[role="button"], span'));
-          const target = els.find(el => el.innerText && el.innerText.trim().toLowerCase() === 'create');
-          if (target) { target.click(); return true; }
-          return false;
-        });
-
-        if (!createClicked) {
-          throw new Error("Could not find 'Create' button on Instagram");
-        }
-
-        await new Promise(r => setTimeout(r, 1200));
-
-        // Modern Instagram Web has a popover with options: "Post", "Live video", "Ad"
-        const postSelected = await page.evaluate(() => {
-          const elements = Array.from(document.querySelectorAll('a, div[role="button"], button, span'));
-          const postEl = elements.find(el => (el.innerText || el.textContent || '').trim() === 'Post');
-          if (postEl) {
-            const target = postEl.closest('a, div[role="button"], button') || postEl;
-            target.click();
-            return true;
-          }
-          return false;
-        });
-        if (postSelected) {
-          logger.info("[INSTAGRAM POSTER] Selected 'Post' from Create menu");
-        }
-
-        await new Promise(r => setTimeout(r, 1500));
-        fileInput = await require('../composer-ready').waitForComposerReady(page, { platform: 'instagram', phase: 'media' });
-      }
-
-      if (!fileInput) throw new Error("Could not find Instagram file input");
+      logger.info("[INSTAGRAM POSTER] Waiting for Create and the media composer...");
+      let fileInput = await require('./open-composer').openInstagramComposer(page);
 
       logger.info(`[INSTAGRAM POSTER] Uploading image: ${options.mediaPaths[0]}...`);
       fileInput = await require('../composer-ready').waitForComposerReady(page, { platform: 'instagram', phase: 'media' });

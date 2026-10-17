@@ -149,3 +149,29 @@ test('browser file attachment verifies a new raster preview and post DOM exclude
     const snapshots=await page.evaluate(collectImagePosts);assert.equal(snapshots.find(s=>s.text==='Checked caption').images.length,1);
   } finally {await browser.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Instagram waits for delayed Create and Post controls and ignores unrelated file inputs', { skip: !executablePath }, async () => {
+  const { default: puppeteer } = await import('puppeteer-core');
+  const browser = await puppeteer.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<input type="file" id="avatar"><main></main>');
+    await page.evaluate(() => {
+      window.clicks = 0;
+      setTimeout(() => {
+        const create = document.createElement('a'); create.href='#'; create.setAttribute('aria-label','Create'); create.textContent='Create';
+        create.onclick = () => { window.clicks++; setTimeout(() => {
+          const post = document.createElement('button'); post.textContent='Post';
+          post.onclick = () => { window.clicks++; setTimeout(() => {
+            const dialog = document.createElement('div'); dialog.setAttribute('role','dialog'); dialog.style='width:300px;height:200px'; dialog.innerHTML='<input type="file" id="composer">'; document.body.append(dialog);
+          }, 200); }; document.body.append(post);
+        }, 200); }; document.body.append(create);
+      }, 200);
+    });
+    const input = await require('../src/platforms/instagram/open-composer').openInstagramComposer(page, { timeout: 5000 });
+    assert.equal(await input.evaluate(el => el.id), 'composer');
+    assert.equal(await page.evaluate(() => window.clicks), 2);
+    await require('../src/platforms/instagram/open-composer').openInstagramComposer(page, { timeout: 2000 });
+    assert.equal(await page.evaluate(() => window.clicks), 2);
+  } finally { await browser.close(); }
+});
