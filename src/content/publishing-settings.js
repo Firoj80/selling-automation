@@ -6,6 +6,6 @@ function disabledPlatforms(product) {
   if (!Array.isArray(disabled) || disabled.some(p => !SUPPORTED.includes(p)) || new Set(disabled).size !== disabled.length) throw new Error('publishing.disabled_platforms must contain unique supported platforms');
   return disabled;
 }
-function publishingEnabled(product, platform) { return product.strategy.platforms.includes(platform) && !disabledPlatforms(product).includes(platform); }
-function activePlatforms(product) { return product.strategy.platforms.filter(platform => publishingEnabled(product, platform)); }
+function publishingEnabled(product, platform, state = null) { return product.strategy.platforms.includes(platform) && !disabledPlatforms(product).includes(platform) && !state?.recovery?.platformHolds?.[platform]; }
+function activePlatforms(product, state = null) { return product.strategy.platforms.filter(platform => publishingEnabled(product, platform, state)); }
 module.exports = { disabledPlatforms, publishingEnabled, activePlatforms };

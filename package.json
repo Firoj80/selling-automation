@@ -19,7 +19,7 @@
     "start": "node threads-agent.js start --engage",
     "status": "node threads-agent.js status",
     "test": "node --test tests/*.test.js",
-    "test:content": "node --test tests/antigravity-images.test.js tests/config-documents.test.js tests/config-management.test.js tests/content-engine.test.js tests/content-queue.test.js tests/content-tracker.test.js tests/continuous-learning.test.js tests/humanizer-rules.test.js tests/interval-schedule.test.js tests/platform-contract.test.js tests/product-engagement.test.js tests/publishing-settings.test.js tests/rolling-media.test.js tests/runtime-connectivity.test.js tests/target-account-analyzer.test.js tests/x-instagram-platform.test.js",
+    "test:content": "node --test tests/antigravity-images.test.js tests/config-documents.test.js tests/config-management.test.js tests/content-engine.test.js tests/content-queue.test.js tests/content-tracker.test.js tests/continuous-learning.test.js tests/humanizer-rules.test.js tests/interval-schedule.test.js tests/platform-contract.test.js tests/product-engagement.test.js tests/publishing-settings.test.js tests/rolling-media.test.js tests/runtime-connectivity.test.js tests/startup-recovery.test.js tests/target-account-analyzer.test.js tests/x-instagram-platform.test.js",
     "test:content:browser": "node --test tests/content-metrics-browser.test.js tests/image-upload-browser.test.js",
     "content:image:preview": "node scripts/preview-content-image.js"
   },

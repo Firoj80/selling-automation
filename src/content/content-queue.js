@@ -7,7 +7,7 @@ function pendingPosts(state) {
   return state.posts.filter(p => p.status === 'pending').sort((a, b) => (a.scheduledAt ?? state.nextPostAt) - (b.scheduledAt ?? state.nextPostAt) || state.posts.indexOf(a) - state.posts.indexOf(b));
 }
 function syncQueue(state, product = null) {
-  const next = pendingPosts(state).find(post => !product || require('./publishing-settings').publishingEnabled(product, post.platform));
+  const next = pendingPosts(state).find(post => !product || require('./publishing-settings').publishingEnabled(product, post.platform, state));
   const uncertain = state.posts.find(p => ['publishing', 'needs_review'].includes(p.status));
   state.cursor = uncertain ? state.posts.indexOf(uncertain) : next ? state.posts.indexOf(next) : state.posts.length; // Compatibility projection only.
   if (next && Number.isFinite(next.scheduledAt)) state.nextPostAt = next.scheduledAt;

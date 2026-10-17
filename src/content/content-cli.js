@@ -13,7 +13,7 @@ const { SwipeStore } = require('../knowledge/swipe-store');
 const { ContentObserver, observerSettings } = require('../knowledge/content-observer');
 const { LearningEngine } = require('../knowledge/learning-engine');
 const management = require('./config-management');
-async function publish(post, product) {
+async function publish(post, product, onSubmission) {
   if (!require('./publishing-settings').publishingEnabled(product, post.platform)) throw new Error(`Publishing is disabled for ${post.platform}`);
   let postToPublish = { ...post };
   if (['threads', 'x'].includes(postToPublish.platform) && postToPublish.type === 'product') {
@@ -41,7 +41,7 @@ async function publish(post, product) {
   }
   if (postToPublish.media?.required && postToPublish.media.status !== 'text_only' && !require('./content-media').validMedia(postToPublish, path.resolve(__dirname, '../..'))) throw new Error('Required image is missing, invalid or does not match the caption');
   const textToSend = isX && postToPublish.text.length > 280 ? require('./content-engine').condenseForX(postToPublish.text) : postToPublish.text;
-  const options = { text: textToSend, ...(postToPublish.threadReply ? { threadReply: postToPublish.threadReply } : {}), pillar: `product_${postToPublish.type}`, format: postToPublish.media?.status === 'ready' ? 'MEDIA' : 'TEXT_ONLY', username: username,
+  const options = { text: textToSend, onSubmission, ...(postToPublish.threadReply ? { threadReply: postToPublish.threadReply } : {}), pillar: `product_${postToPublish.type}`, format: postToPublish.media?.status === 'ready' ? 'MEDIA' : 'TEXT_ONLY', username: username,
     ...(postToPublish.media?.status === 'ready' ? { mediaPaths: [postToPublish.media.path] } : {}) };
   const poster = require(`../platforms/${postToPublish.platform}/${postToPublish.platform}-poster`);
   const result = postToPublish.platform === 'threads' ? await poster.publishEngagingPost(options) : await poster.publishPost(options);
@@ -132,7 +132,7 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
       } else if (args.length === 1 && args[0] === '--stale-lock') {
         result = recovery.recoverStaleLock(root);
       } else if (args.length === 1 && args[0] === '--auto') {
-        result = recovery.autoRecover(root);
+        result = await recovery.autoRecover(root);
       } else if (args[0] === '--reconcile') {
         const id = args[1];
         if (!id) throw new Error('Usage: recover --reconcile POST_ID [--requeue|--discard|--published URL]');
@@ -224,11 +224,11 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
     let stopped = false;
     let wake;
     const pause = ms => new Promise(resolve => { const timer = setTimeout(resolve, ms); wake = () => { clearTimeout(timer); resolve(); }; });
-    const connectivity = dryRun ? null : runtime.connectivity || new (require('./runtime-connectivity').RuntimeConnectivity)({ platforms: require('./publishing-settings').activePlatforms(product) });
+    const connectivity = dryRun ? null : runtime.connectivity || new (require('./runtime-connectivity').RuntimeConnectivity)({ platforms: require('./publishing-settings').activePlatforms(product, state) });
     const stop = () => { stopped = true; if (wake) wake(); };
     process.on('SIGINT', stop);
     process.on('SIGTERM', stop);
-    console.log(`Content mode: ${product.product.name}; publishing: ${require('./publishing-settings').activePlatforms(product).join(', ') || 'paused'}; disabled: ${require('./publishing-settings').disabledPlatforms(product).join(', ') || 'none'}; ${dryRun ? 'PREVIEW' : 'LIVE'}.`);
+    console.log(`Content mode: ${product.product.name}; publishing: ${require('./publishing-settings').activePlatforms(product, state).join(', ') || 'paused'}; disabled: ${require('./publishing-settings').disabledPlatforms(product).join(', ') || 'none'}; ${dryRun ? 'PREVIEW' : 'LIVE'}.`);
     console.log(JSON.stringify({ selling: tracker.getSellingStatus() }));
     try {
       if (approvalArg) {
@@ -258,7 +258,7 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
           for (const change of require('./queue-management').processQueueRequests(root, state)) console.log(JSON.stringify({ queue: change }));
         }
         if (connectivity) {
-          connectivity.platforms = require('./publishing-settings').activePlatforms(product);
+          connectivity.platforms = require('./publishing-settings').activePlatforms(product, state);
           const network = await connectivity.poll();
           if (!network.online) {
             if (network.changed) console.log('[Connectivity] Offline; publication, engagement and AI preparation paused. Pending posts are preserved.');
@@ -288,7 +288,8 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
           if (!['waiting', 'idle', 'disabled', 'complete', 'blocked'].includes(prepared.status)) console.log('[Preparation] ' + JSON.stringify(prepared));
         }
         if (engagement && Date.now() >= nextEngagementAt && !stopped) {
-          const platforms = product.strategy.platforms;
+          const platforms = product.strategy.platforms.filter(platform => !state.recovery?.platformHolds?.[platform]);
+          if (!platforms.length) { await pause(1000); continue; }
           const cycleElapsedMs = Date.now() - engagementCycleStart;
           const PLATFORM_DURATION = 3 * 60000;
           const REST_DURATION = 5 * 60000;

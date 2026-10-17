@@ -49,6 +49,7 @@ class XPoster {
       const submit = await page.$(`${root} button[data-testid="tweetButton"]`);
       if (!submit || await page.evaluate(el => el.disabled || el.getAttribute('aria-disabled') === 'true', submit)) throw new Error('X Post button is unavailable or disabled');
       logger.info(`[X POSTER] Submitting verified caption (${text.length} chars) and ${options.mediaPaths.length} image(s)`);
+      await options.onSubmission?.();
       submitted = true;
       await submit.click();
       await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="tweetTextarea_0"]'), { timeout: 30000 });

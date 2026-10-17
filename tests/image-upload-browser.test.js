@@ -12,6 +12,28 @@ const executablePath = process.env.CONTENT_TEST_BROWSER || [
 const { attachImages } = require('../src/platforms/media-upload');
 const { collectImagePosts } = require('../src/platforms/verify-image-post');
 
+test('Facebook recovery matches an unmarked card with complete caption, author, permalink and its own image', { skip: !executablePath }, async () => {
+  const { default: puppeteer } = await import('puppeteer-core');
+  const { collectFacebookEvidence } = require('../src/platforms/facebook/facebook-post-evidence');
+  const browser = await puppeteer.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const raster = await require('sharp')({ create: { width: 400, height: 400, channels: 3, background: '#663399' } }).png().toBuffer();
+    const image = `data:image/png;base64,${raster.toString('base64')}`;
+    const postUrl = 'https://www.facebook.com/seller/posts/123';
+    const text = 'Duplicate files quietly consume storage. Compare file hashes first.';
+    await page.setContent(`<main><div><a href="https://www.facebook.com/seller">Seller</a><a href="${postUrl}">Now</a><div data-ad-preview="message">${text}</div><img width="300" height="300" src="${image}"></div><div><a href="https://www.facebook.com/other/posts/456">Other</a><div data-ad-preview="message">Different caption</div><img width="300" height="300" src="${image}"></div></main>`);
+    await page.waitForFunction(() => [...document.images].every(img => img.complete && img.naturalWidth));
+    const input = { text, username: 'seller', postUrl };
+    const evidence = await page.evaluate(collectFacebookEvidence, input);
+    assert.equal(evidence.length, 1); assert.equal(evidence[0].images.length, 1); assert.equal(evidence[0].authorVerified, true);
+    assert.deepEqual(await page.evaluate(collectFacebookEvidence, { ...input, username: 'other' }), []);
+    assert.deepEqual(await page.evaluate(collectFacebookEvidence, { ...input, text: text + ' Missing ending.' }), []);
+    await page.evaluate(() => document.querySelector('img').remove());
+    assert.deepEqual(await page.evaluate(collectFacebookEvidence, input), [], 'A neighboring image must not verify this post');
+  } finally { await browser.close(); }
+});
+
 test('all four composers wait for delayed editable hydration and stable layout', { skip: !executablePath }, async () => {
   const { default: puppeteer } = await import('puppeteer-core');
   const { waitForComposerReady } = require('../src/platforms/composer-ready');

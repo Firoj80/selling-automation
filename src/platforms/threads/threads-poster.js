@@ -273,6 +273,7 @@ class ThreadsPoster {
       }
     }
 
+    await options.onSubmission?.();
     // State Transition: SUBMITTING
     stateStore.recordActionTransition("OWN_POST", ourPostId, "TYPING", "SUBMITTING", { pillar, format });
     logger.info("[THREADS POSTER] Submitting post via active composer Post button...");

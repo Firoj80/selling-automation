@@ -59,8 +59,10 @@ function reconcile(root, { id, action = 'requeue', postUrl = null }) {
       post.status = 'pending';
       delete post.attemptedAt;
       delete post.result;
+      delete post.submission;
     }
 
+    if (state.recovery?.platformHolds?.[post.platform] && !state.posts.some(p => p.platform === post.platform && ['publishing', 'needs_review'].includes(p.status))) delete state.recovery.platformHolds[post.platform];
     require('./content-queue').syncQueue(state);
     require('./content-store').save(file, state);
     return {
@@ -72,22 +74,8 @@ function reconcile(root, { id, action = 'requeue', postUrl = null }) {
     };
   });
 }
-function autoRecover(root) {
-  let stale = { status: 'no_lock' };
-  try {
-    stale = recoverStaleLock(root);
-  } catch (err) {
-    stale = { status: 'skipped', reason: err.message };
-  }
-  const report = inspect(root);
-  const reconciled = [];
-  for (const post of report.posts) {
-    try {
-      reconciled.push(reconcile(root, { id: post.id, action: 'requeue' }));
-    } catch (err) {
-      reconciled.push({ id: post.id, status: 'error', reason: err.message });
-    }
-  }
-  return { status: 'auto_recovered', staleLock: stale, reconciled };
+async function autoRecover(root, options) {
+  try { return await require('./startup-recovery').autoRecover(root, options); }
+  finally { require('../browser/browser-manager').disconnect(); }
 }
 module.exports = { inspect, recoverStaleLock, reconcile, autoRecover };

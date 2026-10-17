@@ -21,11 +21,13 @@ async function main() {
   await run(['threads-agent.js', 'settings', 'validate']);
   const recoveryTools = require('../src/content/content-recovery');
   const recovery = recoveryTools.inspect(root);
-  if (recovery.posts.length) throw new Error('Saved publication requires review. Run node threads-agent.js recover --inspect and reconcile against the platform before starting.');
   if (recovery.lock.status === 'stale') write(JSON.stringify(recoveryTools.recoverStaleLock(root)) + '\n');
   else if (recovery.lock.status !== 'absent') throw new Error('Automation is already running or lock ownership cannot be verified. Run recover --inspect.');
   await run(['scripts/launch-browser-cdp.js']);
   write('Using saved browser logins. Keep the browser open.\n');
+  const recovered = await recoveryTools.autoRecover(root);
+  write('[Automatic recovery] ' + JSON.stringify(recovered) + '\n');
+  require('../src/browser/browser-manager').disconnect();
   const { product } = require('../src/content/product-config').loadProduct(root);
   const media = require('../src/content/media-settings').mediaSettings(product);
   const rolling = require('../src/content/media-settings').rollingSettings(product);

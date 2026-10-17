@@ -33,6 +33,7 @@ Run from the project directory. Enable live publishing deliberately in `.env` af
 | Resume paused publishers | `node threads-agent.js settings set publishing.disabled_platforms []` |
 | Set checkout URL | `node threads-agent.js set-url https://your-sales-link.example/` |
 | Inspect uncertain state | `node threads-agent.js recover --inspect` |
+| Automatic recovery without starting publication | `node threads-agent.js recover --auto` |
 | Confirm published result | `node threads-agent.js recover --reconcile ID --published URL` |
 | Requeue after confirming no publication | `node threads-agent.js recover --reconcile ID --requeue` |
 | Configuration GUI | `node gui-server.js` |

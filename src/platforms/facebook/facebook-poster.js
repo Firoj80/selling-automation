@@ -39,6 +39,7 @@ class FacebookPoster {
       return { success: true, simulated: true, postId, text: textToPost, mediaCount: options.mediaPaths.length, verifiedMediaCount: options.mediaPaths.length };
     }
 
+    let submitted = false;
     try {
       const page = await browserManager.getFacebookPage();
       
@@ -82,36 +83,26 @@ class FacebookPoster {
       // Find Post button inside modal and handle Next -> Post flows
       logger.info("[FACEBOOK POSTER] Submitting post (handling Next/Post steps)...");
       for (let attempt = 0; attempt < 8; attempt++) {
-        const clickedPost = await page.evaluate(() => {
-          const els = Array.from(document.querySelectorAll('*'));
-          for (let i = els.length - 1; i >= 0; i--) {
-            const el = els[i];
-            const text = (el.innerText || el.getAttribute("aria-label") || "").trim().toLowerCase();
-            // Look for an exact match for the primary action button
-            if (text === "post" || text === "publish" || text === "next") {
-              // Ensure we aren't clicking a disabled button
-              if (el.getAttribute('aria-disabled') !== 'true' && !el.disabled) {
-                el.click();
-                return true;
-              }
-            }
-          }
-          return false;
+        const handle = await page.evaluateHandle(() => {
+          const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(el => el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+          const scope = dialogs[dialogs.length - 1];
+          if (!scope) return null;
+          return [...scope.querySelectorAll('button, [role="button"]')].find(el => {
+            const text = (el.innerText || el.getAttribute('aria-label') || '').trim().toLowerCase();
+            return ['next', 'post', 'publish'].includes(text) && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && el.getBoundingClientRect().width > 0;
+          }) || null;
         });
-
-        await new Promise(r => setTimeout(r, 2000));
-
-        // Check if the submit button is gone (meaning the modal closed or moved to next step)
-        const stillHasSubmit = await page.evaluate(() => {
-          const els = Array.from(document.querySelectorAll('*'));
-          return els.some(el => {
-            const text = (el.innerText || el.getAttribute("aria-label") || "").trim().toLowerCase();
-            return text === "post" || text === "publish" || text === "next";
-          });
-        });
-
-        if (!stillHasSubmit) break; // Finished!
+        const button = handle.asElement();
+        if (!button) { await handle.dispose(); await new Promise(resolve => setTimeout(resolve, 1000)); continue; }
+        const action = await page.evaluate(el => (el.innerText || el.getAttribute('aria-label') || '').trim().toLowerCase(), button);
+        try {
+          if (action !== 'next') { await options.onSubmission?.(); submitted = true; }
+          await button.click();
+        } finally { await handle.dispose(); }
+        if (submitted) break;
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
+      if (!submitted) throw new Error('Facebook Post button was unavailable; nothing was submitted');
 
       logger.info("[FACEBOOK POSTER] Form submitted, awaiting confirmation...");
       await new Promise(r => setTimeout(r, 5000));
@@ -119,7 +110,7 @@ class FacebookPoster {
       // Verify the composer modal is closed
       await page.waitForFunction(() => {
         return !document.querySelector('div[role="dialog"] [contenteditable="true"]');
-      }, { timeout: 15000 }).catch(() => {});
+      }, { timeout: 15000 });
 
       // Navigate to the user's authenticated profile feed where own posts appear chronologically
       const username = options.username || 'hiiifiroj';
@@ -177,10 +168,7 @@ class FacebookPoster {
         throw new Error('Image post submitted but its public post URL could not be verified; review the Facebook profile before retrying');
       }
 
-      const mediaVerification = (options.mediaPaths?.length && postUrl) ? await require('../verify-image-post').verifyImagePost(page, { text: textToPost, platform: 'facebook', postUrl }, options.mediaPaths.length).catch(e => {
-        logger.warn(`[FACEBOOK POSTER] Deep image verification fallback: ${e.message}`);
-        return { postUrl, verifiedMediaCount: options.mediaPaths.length, mediaVerifiedAt: Date.now() };
-      }) : {};
+      const mediaVerification = await require('../verify-image-post').verifyImagePost(page, { text: textToPost, platform: 'facebook', postUrl }, options.mediaPaths.length);
 
       logger.info("✅ Post published successfully on Facebook public profile!");
       stateStore.recordActionTransition("OWN_POST", postId, "INIT", "VERIFIED_PUBLISHED", {
@@ -193,7 +181,7 @@ class FacebookPoster {
       return { success: true, verified: true, postId, postUrl, text: textToPost, mediaCount: options.mediaPaths?.length || 0, ...mediaVerification };
     } catch (err) {
       logger.error(`Failed to publish post on Facebook: ${err.message}`);
-      return { success: false, reason: err.message };
+      return { success: false, verified: false, submitted, reason: err.message };
     }
   }
 }

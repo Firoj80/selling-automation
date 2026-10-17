@@ -138,6 +138,7 @@ class InstagramPoster {
 
       // Step: Click "Share"
       logger.info("[INSTAGRAM POSTER] Submitting post (Share)...");
+      await options.onSubmission?.();
       submitted = true;
       const shared = await clickHeaderAction("Share");
       if (!shared) throw new Error("Could not find 'Share' button on Instagram");

@@ -6,7 +6,7 @@ class ContentScheduler {
     if (!Array.isArray(state.posts) || !Number.isFinite(state.nextPostAt)) throw new Error('Invalid content state');
     Object.assign(this, { product, state, persist, publish, tracker, engine, planner, copy, mediaRoot, now });
   }
-  selectPost() { return timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.post || null : pendingPosts(this.state).find(p => require('./publishing-settings').publishingEnabled(this.product, p.platform)) || null; }
+  selectPost() { return timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.post || null : pendingPosts(this.state).find(p => require('./publishing-settings').publishingEnabled(this.product, p.platform, this.state)) || null; }
   getNextPlatform() { return this.selectPost()?.platform || null; }
   getNextPostTime() { return new Date(timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.due ?? this.state.nextPostAt : this.selectPost()?.scheduledAt ?? this.state.nextPostAt); }
   commit() { if (timing.isInterval(this.product)) timing.projectQueue(this.state, this.product, this.now()); syncQueue(this.state, this.product); this.persist(this.state); }
@@ -18,7 +18,7 @@ class ContentScheduler {
   }
   eligible(post) { return !!this.tracker?.shouldPublishProductForPlatform(post.platform); }
   async tick({ dryRun = true } = {}) {
-    const uncertain = this.state.posts.find(p => ['publishing', 'needs_review'].includes(p.status));
+    const uncertain = this.state.posts.find(p => ['publishing', 'needs_review'].includes(p.status) && !this.state.recovery?.platformHolds?.[p.platform]);
     if (uncertain) throw new Error(`Post ${uncertain.id} has status ${uncertain.status}; reconcile the platform result before retrying. Run node threads-agent.js recover --inspect.`);
     if (!dryRun) this.initCatchup();
     const learning = this.state.learning;
@@ -96,14 +96,15 @@ class ContentScheduler {
       post.status = 'needs_media'; this.commit();
       return { status: 'held', reason: 'Caption image must be prepared before publishing', post };
     }
-    post.status = 'publishing'; post.attemptedAt = this.now(); this.commit();
+    post.status = 'publishing'; post.attemptedAt = this.now(); post.submission = { version: 1, state: 'preparing', at: this.now() }; this.commit();
     let result;
-    try { result = await this.publish(post, this.product); } catch (err) { result = { success: false, reason: err.message }; }
+    const onSubmission = () => { post.submission = { version: 1, state: 'may_have_submitted', at: this.now() }; this.commit(); };
+    try { result = await this.publish(post, this.product, onSubmission); } catch (err) { result = { success: false, reason: err.message }; }
     if (!result?.success || !result.verified || result.simulated) {
       post.status = 'needs_review'; post.result = result || { reason: 'Empty publisher response' }; this.commit();
       throw new Error(`Publication requires review: ${post.result.reason || 'No verified live result'}. Reconcile before retrying.`);
     }
-    post.status = 'published'; post.publishedAt = this.now(); post.result = result;
+    post.status = 'published'; post.publishedAt = this.now(); post.result = result; post.submission = { version: 1, state: 'confirmed', at: this.now() };
     if (!Number.isFinite(this.selectPost()?.scheduledAt)) this.state.nextPostAt = this.now() + this.product.strategy.post_frequency_hours * 3600000;
     this.commit();
     return { status: 'published', post };

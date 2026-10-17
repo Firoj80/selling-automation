@@ -9,7 +9,7 @@ function lastPublished(state, platform) {
 }
 function candidates(state, product) {
   const seen = new Set();
-  return state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)).flatMap(post => {
+  return state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)).flatMap(post => {
     if (seen.has(post.platform)) return [];
     seen.add(post.platform);
     const last = lastPublished(state, post.platform);
@@ -18,7 +18,7 @@ function candidates(state, product) {
 }
 function projectQueue(state, product, now) {
   const next = {};
-  const pending = state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
+  const pending = state.posts.filter(p => p.status === 'pending' && publishingEnabled(product, p.platform, state)).sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0));
   for (const post of pending) {
     if (next[post.platform] === undefined) {
       const last = lastPublished(state, post.platform);

@@ -114,6 +114,11 @@ async function findPostUrl(page, post) {
     if (snapshots.length !== 1) return null;
     snapshot = selectSnapshot(snapshots, post);
   }
+  if (!snapshot && post.platform === 'facebook') {
+    snapshots = await page.evaluate(require('../platforms/facebook/facebook-post-evidence').collectFacebookEvidence, { text: post.text, username: post.username });
+    if (snapshots.length !== 1) return null;
+    snapshot = selectSnapshot(snapshots, post);
+  }
   if (!snapshot) return null;
   const urls = [...new Set(snapshot.links.map(link => canonicalPostUrl(link, post.platform)).filter(Boolean))];
   if (post.platform === 'threads' && post.username && urls.some(url => new URL(url).pathname.split('/')[1].toLowerCase() !== '@' + post.username.replace(/^@/, '').toLowerCase())) return null;
