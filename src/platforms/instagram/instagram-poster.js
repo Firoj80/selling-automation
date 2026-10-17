@@ -70,12 +70,8 @@ class InstagramPoster {
       // Step: Advance through "Next" button(s) until caption area or Share button is visible
       for (let step = 1; step <= 2; step++) {
         await new Promise(r => setTimeout(r, 1500));
-        const hasCaptionOrShare = await page.evaluate(() => {
-          const textarea = document.querySelector('textarea[aria-label*="caption" i], [contenteditable="true"][aria-label*="caption" i], [role="dialog"] textarea, [role="dialog"] [contenteditable="true"]');
-          const shareBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).some(b => (b.innerText || '').trim().toLowerCase() === 'share');
-          return !!(textarea || shareBtn);
-        });
-        if (hasCaptionOrShare) {
+        const readyStep = await require('./composer-step').waitForInstagramStep(page);
+        if (readyStep === 'caption') {
           logger.info("[INSTAGRAM POSTER] Caption/Share screen reached");
           break;
         }

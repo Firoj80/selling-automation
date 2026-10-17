@@ -194,3 +194,7 @@ test('Threads product verification binds full caption, author and exact destinat
   const stub={goto:async()=>{},evaluate:async()=>[]};await assert.rejects(verifyProductReply(stub,input,{attempts:1,delayMs:0}),/complete product reply/);
  }finally{await browser.close()}
 });
+
+test('Instagram transition waits for a visible enabled Next button instead of failing during image processing', {skip:!executablePath},async()=>{
+ const {default:puppeteer}=await import('puppeteer-core');const browser=await puppeteer.launch({executablePath,headless:true});try{const page=await browser.newPage();await page.setContent('<div role="dialog" style="width:300px;height:200px"><button disabled>Next</button></div>');await page.evaluate(()=>setTimeout(()=>document.querySelector('button').disabled=false,400));const start=Date.now();assert.equal(await require('../src/platforms/instagram/composer-step').waitForInstagramStep(page,3000),'next');assert.ok(Date.now()-start>=300);await page.setContent('<div role="dialog" style="width:300px;height:200px"><textarea aria-label="Write a caption"></textarea></div>');assert.equal(await require('../src/platforms/instagram/composer-step').waitForInstagramStep(page,3000),'caption');}finally{await browser.close()}
+});
