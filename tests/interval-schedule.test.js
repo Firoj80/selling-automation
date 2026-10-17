@@ -15,6 +15,41 @@ function fixture(posts, time=NOW) {
   const scheduler=new ContentScheduler({ product,state,persist:()=>{},now:()=>now,publish:async()=>{sends++;now+=1000;return {success:true,verified:true};} });
   return {scheduler,state,sends:()=>sends,setTime:t=>{now=t;}};
 }
+
+test('returning online after yesterday publishes one post on all four platforms then rebases every remaining interval', async t => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'four-platform-resume-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, 'private', 'post-images'); fs.mkdirSync(dir, { recursive: true });
+  const image = path.join(dir, 'fixture.png');
+  const bytes = await require('sharp')({ create: { width: 400, height: 400, channels: 3, background: '#663399' } }).png().toBuffer();
+  fs.writeFileSync(image, bytes);
+  const { textHash } = require('../src/content/content-media');
+  const platforms = ['threads', 'facebook', 'x', 'instagram'];
+  const configured = { ...structuredClone(product), strategy: { ...product.strategy, platforms } };
+  const posts = platforms.map(p => published(`old-${p}`, p, NOW - 24 * HOUR));
+  for (let slot = 0; slot < 3; slot++) for (const p of platforms) posts.push(draft(`${slot}-${p}`, p));
+  const f = fixture(posts);
+  f.scheduler.product = configured;
+  f.scheduler.mediaRoot = root;
+  for (const post of posts.filter(p => p.platform === 'instagram' && p.status === 'pending')) post.media = { required: true, status: 'ready', path: image, width: 400, height: 400, textHash: textHash(post.text), fileHash: textHash(bytes) };
+  const originalTexts = posts.map(p => [p.id, p.text]);
+  const resume = timing.resumeIntervalQueue(f.state, configured, NOW);
+  assert.deepEqual(resume.duePlatforms, platforms);
+  for (const platform of platforms) assert.equal((await f.scheduler.tick({ dryRun: false })).post.platform, platform);
+  assert.equal(f.sends(), 4);
+  assert.equal((await f.scheduler.tick({ dryRun: false })).status, 'waiting');
+  for (const platform of platforms) {
+    const last = timing.lastPublished(f.state, platform);
+    const pending = f.state.posts.filter(p => p.platform === platform && p.status === 'pending');
+    assert.deepEqual(pending.map(p => p.scheduledAt), [last + 2 * HOUR, last + 4 * HOUR]);
+  }
+  assert.deepEqual(posts.map(p => [p.id, p.text]), originalTexts);
+  const unchanged = timing.resumeIntervalQueue(f.state, configured, NOW + HOUR);
+  assert.equal(unchanged.status, 'on_schedule');
+  assert.deepEqual(unchanged.duePlatforms, []);
+  assert.equal(timing.hasDuePosts(f.state, configured, NOW + HOUR), false);
+});
 test('interval mode ignores old fixed slots and uses each platforms actual last publication', async()=>{
   const f=fixture([published('a','threads',NOW-HOUR),published('b','facebook',NOW-3*HOUR),draft('1','threads'),draft('2','facebook')]);
   assert.equal((await f.scheduler.tick({dryRun:false})).post.platform,'facebook');

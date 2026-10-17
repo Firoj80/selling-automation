@@ -68,34 +68,16 @@ class FacebookPoster {
       
       await new Promise(r => setTimeout(r, 2000));
 
-      // Wait for modal composer
-      const composerSelector = "div[contenteditable='true'][role='textbox']";
-      await page.waitForSelector(composerSelector, { timeout: 12000 });
-      const composer = await page.$(composerSelector);
-      if (!composer) throw new Error("Could not find Facebook composer textbox");
-
-      await composer.click();
-      await new Promise(r => setTimeout(r, 500));
-
-      logger.info(`[FACEBOOK POSTER] Typing post content (${textToPost.length} chars)...`);
-      // We use page.evaluate to set text or use Shift+Enter for newlines to prevent accidental submission if it focused a comment box
-      const lines = textToPost.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        for (const char of lines[i]) {
-          await page.keyboard.type(char, { delay: Math.floor(Math.random() * 20) + 10 });
-        }
-        if (i < lines.length - 1) {
-          await page.keyboard.down('Shift');
-          await page.keyboard.press('Enter');
-          await page.keyboard.up('Shift');
-        }
-      }
-      await new Promise(r => setTimeout(r, 1500));
+      const composer = await require('../composer-ready').waitForComposerReady(page, { platform: 'facebook' });
+      await require('../composer-text').writeComposerText(page, composer, textToPost);
 
       if (options.mediaPaths?.length) {
         logger.info(`[FACEBOOK POSTER] Attaching ${options.mediaPaths.length} prepared image(s)...`);
+        await require('../composer-ready').waitForComposerReady(page, { platform: 'facebook' });
         await require('../media-upload').attachImages(page, options.mediaPaths);
       }
+
+      await require('../composer-text').assertComposerText(page, composer, textToPost);
 
       // Find Post button inside modal and handle Next -> Post flows
       logger.info("[FACEBOOK POSTER] Submitting post (handling Next/Post steps)...");

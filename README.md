@@ -33,6 +33,10 @@ Setup checkpoints drafts in `private/product-generation.json` and creates `priva
 
 Interval scheduling measures cadence separately per platform from its last verified publication. Restarts resume the queue without a burst for missed intervals. Calendar scheduling supports local times and timezones. Saved product settings determine cadence and pilot quantities.
 
+The live runtime checks connectivity about every 15 seconds and pauses publishing, engagement and preparation while the configured platforms are unreachable. On reconnect or restart, each overdue platform publishes one ready post in sequence, before learning and engagement. Remaining posts are rescheduled from that platform's verified publication time (two hours with the current configuration). Platforms still within their interval keep waiting; manually postponed drafts stay postponed. Uncertain submissions still require reconciliation.
+
+All four publishers wait for an editable, unobstructed composer with stable layout before typing or attaching media. Instagram's image-selection screen and full-page caption editor are supported separately. Startup automatically archives a stale lock only after verifying that its process has stopped; it never resets uncertain publications.
+
 Promotions depend on the sales URL, value-post/view thresholds and promotion spacing. Thresholds support platform overrides; unknown views remain unknown. The initial learning pilot is value-only. Later content uses observed performance and validated public patterns. Rolling preparation produces replacements after verified publications, subject to campaign limits.
 
 ## Architecture and state

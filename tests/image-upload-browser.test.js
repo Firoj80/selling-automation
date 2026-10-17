@@ -12,6 +12,43 @@ const executablePath = process.env.CONTENT_TEST_BROWSER || [
 const { attachImages } = require('../src/platforms/media-upload');
 const { collectImagePosts } = require('../src/platforms/verify-image-post');
 
+test('all four composers wait for delayed editable hydration and stable layout', { skip: !executablePath }, async () => {
+  const { default: puppeteer } = await import('puppeteer-core');
+  const { waitForComposerReady } = require('../src/platforms/composer-ready');
+  const browser = await puppeteer.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const platform of ['threads', 'facebook', 'x', 'instagram']) {
+      await page.setContent('<div contenteditable="true" role="textbox">Unrelated feed editor</div><div role="dialog" aria-busy="true" style="width:300px;min-height:100px"></div>');
+      await page.evaluate(kind => {
+        setTimeout(() => {
+          const scope = document.querySelector('[role="dialog"]');
+          const editor = document.createElement(kind === 'instagram' ? 'textarea' : 'div');
+          editor.setAttribute('role', 'textbox');
+          if (kind === 'instagram') editor.setAttribute('aria-label', 'Write a caption…');
+          else editor.contentEditable = 'true';
+          if (kind === 'x') editor.setAttribute('data-testid', 'tweetTextarea_0');
+          scope.append(editor);
+          setTimeout(() => { scope.removeAttribute('aria-busy'); window.readyAt = performance.now(); }, 150);
+        }, 150);
+      }, platform);
+      const editor = await waitForComposerReady(page, { platform, stableMs: 150, timeout: 5000 });
+      assert.ok(await page.evaluate(el => el.closest('[role="dialog"]') !== null, editor), platform);
+      assert.ok(await page.evaluate(() => performance.now() - window.readyAt >= 150), platform);
+      await require('../src/platforms/composer-text').writeComposerText(page, editor, 'Ready caption.');
+    }
+    await page.setContent('<div role="dialog" style="display:none"><div contenteditable="true"></div></div><div contenteditable="true" role="textbox">Feed only</div>');
+    await assert.rejects(waitForComposerReady(page, { platform: 'threads', timeout: 500 }), /fully ready/);
+    await page.setContent('<div role="dialog" style="width:300px;min-height:100px"><input type="file" style="display:none"></div>');
+    assert.ok(await waitForComposerReady(page, { platform: 'instagram', phase: 'media', stableMs: 100, timeout: 3000 }));
+    for (const platform of ['threads', 'x']) {
+      await page.setContent('<div role="dialog"><div data-testid="tweetTextarea_0" contenteditable="true">Main</div><div data-testid="tweetTextarea_1" contenteditable="true">Reply</div></div>');
+      const reply = await waitForComposerReady(page, { platform, editorIndex: 1, stableMs: 100, timeout: 3000 });
+      assert.equal(await page.evaluate(el => el.innerText, reply), 'Reply');
+    }
+  } finally { await browser.close(); }
+});
+
 test('native composer insertion preserves complete captions and rejects damaged text', { skip: !executablePath }, async () => {
   const { default: puppeteer } = await import('puppeteer-core');
   const { writeComposerText, assertComposerText } = require('../src/platforms/composer-text');

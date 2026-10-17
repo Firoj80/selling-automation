@@ -42,4 +42,13 @@ function intervalSlots(product, now, plan, state = { posts: [] }) {
     const time = next[a.platform]; next[a.platform] += intervalMs(product); return time;
   });
 }
-module.exports = { isInterval, intervalMs, lastPublished, candidates, projectQueue, campaignEnd, intervalSlots };
+function resumeIntervalQueue(state, product, now) {
+  if (!isInterval(product)) return { status: 'unchanged', duePlatforms: [] };
+  const duePlatforms = candidates(state, product).filter(c => c.due <= now).map(c => c.post.platform);
+  projectQueue(state, product, now);
+  return { status: duePlatforms.length ? 'catch_up' : 'on_schedule', duePlatforms, resumedAt: now, intervalHours: product.strategy.post_frequency_hours };
+}
+function hasDuePosts(state, product, now) {
+  return isInterval(product) && candidates(state, product).some(c => c.due <= now);
+}
+module.exports = { isInterval, intervalMs, lastPublished, candidates, projectQueue, campaignEnd, intervalSlots, resumeIntervalQueue, hasDuePosts };

@@ -95,12 +95,13 @@ class InstagramPoster {
         }
 
         await new Promise(r => setTimeout(r, 1500));
-        fileInput = await page.waitForSelector('input[type="file"]', { timeout: 15000 }).catch(() => null);
+        fileInput = await require('../composer-ready').waitForComposerReady(page, { platform: 'instagram', phase: 'media' });
       }
 
       if (!fileInput) throw new Error("Could not find Instagram file input");
 
       logger.info(`[INSTAGRAM POSTER] Uploading image: ${options.mediaPaths[0]}...`);
+      fileInput = await require('../composer-ready').waitForComposerReady(page, { platform: 'instagram', phase: 'media' });
       await fileInput.uploadFile(options.mediaPaths[0]);
       await new Promise(r => setTimeout(r, 3000));
 
@@ -129,7 +130,7 @@ class InstagramPoster {
       }
 
       const captionBoxSelector = INSTAGRAM_CAPTION_SELECTOR;
-      const captionBox = await page.waitForSelector(captionBoxSelector, { visible: true, timeout: 15000 });
+      const captionBox = await require('../composer-ready').waitForComposerReady(page, { platform: 'instagram' });
       if (!captionBox) throw new Error('Instagram caption editor unavailable; submission blocked');
       await writeComposerText(page, captionBox, captionText);
       await assertComposerText(page, captionBox, captionText);

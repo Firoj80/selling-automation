@@ -19,8 +19,11 @@ async function main() {
   write(`\n=== Automation startup ${new Date().toISOString()} ===\nLog: ${logFile}\n`);
   if (!fs.existsSync(path.join(root, 'product.json'))) throw new Error('Missing product.json. Run node scripts/product-wizard.js first.');
   await run(['threads-agent.js', 'settings', 'validate']);
-  const recovery = require('../src/content/content-recovery').inspect(root);
+  const recoveryTools = require('../src/content/content-recovery');
+  const recovery = recoveryTools.inspect(root);
   if (recovery.posts.length) throw new Error('Saved publication requires review. Run node threads-agent.js recover --inspect and reconcile against the platform before starting.');
+  if (recovery.lock.status === 'stale') write(JSON.stringify(recoveryTools.recoverStaleLock(root)) + '\n');
+  else if (recovery.lock.status !== 'absent') throw new Error('Automation is already running or lock ownership cannot be verified. Run recover --inspect.');
   await run(['scripts/launch-browser-cdp.js']);
   write('Using saved browser logins. Keep the browser open.\n');
   const { product } = require('../src/content/product-config').loadProduct(root);

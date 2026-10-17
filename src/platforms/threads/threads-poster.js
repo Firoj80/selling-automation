@@ -195,6 +195,8 @@ class ThreadsPoster {
     stateStore.recordActionTransition("OWN_POST", ourPostId, "PREPARING", "OPENED", { pillar, format });
     await new Promise(r => setTimeout(r, 1500));
 
+    await require('../composer-ready').waitForComposerReady(page, { platform: 'threads' });
+
     // 4. If media assets exist, attach them via file input
     if (mediaPaths.length > 0) {
       logger.info(`[THREADS POSTER] Attaching ${mediaPaths.length} image(s) to composer...`);
@@ -225,33 +227,9 @@ class ThreadsPoster {
     }
 
     // 5. Locate composer textbox strictly inside the active modal/dialog (never match page comment boxes)
-    const textbox = await page.waitForSelector('div[role="dialog"] div[role="textbox"][contenteditable="true"], [aria-modal="true"] div[role="textbox"][contenteditable="true"], div[role="dialog"] [contenteditable="true"], [aria-modal="true"] [contenteditable="true"]', { timeout: 8000 });
-    if (!textbox) {
-      stateStore.recordActionTransition("OWN_POST", ourPostId, "OPENED", "FAILED", {
-        reason: "Composer textbox did not open after clicking New thread"
-      });
-      throw new Error("Composer textbox did not open after clicking New thread");
-    }
-
-    // State Transition: TYPING
-    stateStore.recordActionTransition("OWN_POST", ourPostId, "OPENED", "TYPING", { pillar, format });
-    await textbox.focus();
-    await new Promise(r => setTimeout(r, 400));
-    // Clear any residual draft text completely
-    await page.keyboard.down("Control");
-    await page.keyboard.press("KeyA");
-    await page.keyboard.up("Control");
-    await page.keyboard.press("Backspace");
-    await new Promise(r => setTimeout(r, 400));
-
-    // 6. Type text visibly with human-like delays
-    logger.info("[THREADS POSTER] Visibly typing post caption into composer...");
-    for (const char of postText) {
-      await page.keyboard.sendCharacter(char);
-      await new Promise(r => setTimeout(r, Math.floor(Math.random() * 20) + 15));
-    }
-
-    await new Promise(r => setTimeout(r, 2000));
+    const textbox = await require('../composer-ready').waitForComposerReady(page, { platform: 'threads' });
+    stateStore.recordActionTransition('OWN_POST', ourPostId, 'OPENED', 'TYPING', { pillar, format });
+    await require('../composer-text').writeComposerText(page, textbox, postText);
 
     // 6b. Native 2-Part Connected Thread: Add product details & link in second connected box
     if (options.threadReply && typeof options.threadReply === 'string' && options.threadReply.trim()) {
@@ -285,23 +263,8 @@ class ThreadsPoster {
         }, { timeout: 8000 }).catch(() => null);
 
         if (secondBoxAppeared) {
-          const secondBox = await page.evaluateHandle(() => {
-            const dialog = document.querySelector('div[role="dialog"], [aria-modal="true"]');
-            if (!dialog) return null;
-            const boxes = dialog.querySelectorAll('div[contenteditable="true"]');
-            return boxes[1] || null;
-          });
-
-          if (secondBox && secondBox.asElement()) {
-            await secondBox.focus();
-            await new Promise(r => setTimeout(r, 400));
-            logger.info("[THREADS POSTER] Visibly typing 2nd inner thread (product pitch + link)...");
-            for (const char of replyText) {
-              await page.keyboard.sendCharacter(char);
-              await new Promise(r => setTimeout(r, Math.floor(Math.random() * 20) + 15));
-            }
-            await new Promise(r => setTimeout(r, 1500));
-          }
+          const secondBox = await require('../composer-ready').waitForComposerReady(page, { platform: 'threads', editorIndex: 1 });
+          await require('../composer-text').writeComposerText(page, secondBox, replyText);
         } else {
           logger.warn("[THREADS POSTER] Second composer textbox did not appear after 'Add to thread' click; continuing with main thread.");
         }

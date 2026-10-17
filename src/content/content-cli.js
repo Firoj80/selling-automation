@@ -48,7 +48,7 @@ async function publish(post, product) {
   if (result?.success && result.verified && !result.simulated) limiter.recordAction('OWN_POST', postToPublish.platform, postToPublish.id);
   return result;
 }
-async function run(command, args = [], root = path.resolve(__dirname, '../..')) {
+async function run(command, args = [], root = path.resolve(__dirname, '../..'), runtime = {}) {
   if (command === 'status') command = 'content-status';
   if (command === 'auth') {
     const target = (args[0] || 'all').toLowerCase();
@@ -222,6 +222,8 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..')) 
     const scheduler = new ContentScheduler({ product, state, persist, publish, tracker, engine, planner, copy, mediaRoot: root });
     let stopped = false;
     let wake;
+    const pause = ms => new Promise(resolve => { const timer = setTimeout(resolve, ms); wake = () => { clearTimeout(timer); resolve(); }; });
+    const connectivity = dryRun ? null : runtime.connectivity || new (require('./runtime-connectivity').RuntimeConnectivity)({ platforms: product.strategy.platforms });
     const stop = () => { stopped = true; if (wake) wake(); };
     process.on('SIGINT', stop);
     process.on('SIGTERM', stop);
@@ -240,6 +242,20 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..')) 
       let lastHeldMessage;
       
       while (!stopped) {
+        if (connectivity) {
+          const network = await connectivity.poll();
+          if (!network.online) {
+            if (network.changed) console.log('[Connectivity] Offline; publication, engagement and AI preparation paused. Pending posts are preserved.');
+            if (args.includes('--once')) { console.log(JSON.stringify({ status: 'offline', platforms: network.platforms })); break; }
+            await pause(1000); wake = null;
+            continue;
+          }
+          if (stopped) break;
+          if (network.changed && !engagementOnly) {
+            const resumed = require('./interval-schedule').resumeIntervalQueue(state, product, Date.now());
+            if (resumed.status !== 'unchanged') { scheduler.commit(); console.log('[Schedule] ' + JSON.stringify(resumed)); }
+          }
+        }
         if (rolling) media.poll(state, () => scheduler.commit());
         if (!dryRun) {
           const changes = management.processChanges(root);
@@ -255,16 +271,18 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..')) 
           for (const change of require('./queue-management').processQueueRequests(root, state)) console.log(JSON.stringify({ queue: change }));
         }
         // Synthesize during idle time or before replenishment; never ahead of a due post.
-        if (!dryRun && externalLearning && (engagementOnly || !state.posts.some(p => p.status === 'pending') || state.nextPostAt > Date.now() + 5 * 60000)) {
-          const learned = await externalLearning.maybeLearn(state);
+        if (!dryRun && externalLearning && (engagementOnly || !require('./interval-schedule').hasDuePosts(state, product, Date.now())) && (engagementOnly || !state.posts.some(p => p.status === 'pending') || state.nextPostAt > Date.now() + 5 * 60000)) {
+          const learned = await externalLearning.maybeLearn(state).catch(err => ({ status: 'error', reason: err.message }));
           if (['learned', 'error'].includes(learned.status)) console.log(JSON.stringify({ learning: learned }));
         }
         const result = engagementOnly ? { status: 'engagement' } : await scheduler.tick({ dryRun });
         const heldMessage = result.status === 'held' ? JSON.stringify(result) : null;
         if ((!['waiting', 'observing', 'engagement'].includes(result.status) && !(engagement && result.status === 'complete') && (!heldMessage || heldMessage !== lastHeldMessage)) || args.includes('--once') || dryRun) console.log(JSON.stringify(result, null, 2));
         lastHeldMessage = heldMessage;
+        // Finish one due publication per platform before starting slow background work.
+        if (!engagementOnly && !dryRun && !args.includes('--once') && ['published', 'held'].includes(result.status) && require('./interval-schedule').hasDuePosts(state, product, Date.now())) continue;
         if (rolling && !stopped) {
-          const prepared = await rolling.tick();
+          const prepared = await rolling.tick().catch(err => ({ status: 'preparation_error', reason: err.message }));
           if (!['waiting', 'idle', 'disabled', 'complete', 'blocked'].includes(prepared.status)) console.log('[Preparation] ' + JSON.stringify(prepared));
         }
         if (engagement && Date.now() >= nextEngagementAt && !stopped) {
@@ -286,12 +304,12 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..')) 
             const platformIndex = Math.floor(cycleElapsedMs / PLATFORM_DURATION);
             const activePlatform = platforms[platformIndex];
             console.log(`[ENGAGEMENT] Focusing on platform: ${activePlatform} (${Math.floor((cycleElapsedMs % PLATFORM_DURATION) / 60000)}/3 mins elapsed in this block)`);
-            console.log(JSON.stringify(await engagement.cycle({ dryRun, approvalMode: CONFIG.APPROVAL_MODE, activePlatform }), null, 2));
+            console.log(JSON.stringify(await engagement.cycle({ dryRun, approvalMode: CONFIG.APPROVAL_MODE, activePlatform }).catch(err => ({ status: 'engagement_error', reason: err.message })), null, 2));
             nextEngagementAt = Date.now() + 2.5 * 60000; // Check the active platform every 2.5 mins
           }
         }
         if (dryRun || args.includes('--once') || (result.status === 'complete' && !engagement)) break;
-        await new Promise(resolve => { const timer = setTimeout(resolve, 1000); wake = () => { clearTimeout(timer); resolve(); }; });
+        await pause(1000);
         wake = null;
       }
     } finally {

@@ -27,7 +27,7 @@ class XPoster {
       const page = await browserManager.getXPage();
       const before = new Set(await profilePermalinks(page, 'x', username));
       await page.goto('https://x.com/compose/post', { waitUntil: 'domcontentloaded', timeout: 35000 });
-      const editor = await page.waitForSelector('[role="dialog"] [data-testid="tweetTextarea_0"][contenteditable="true"]', { visible: true, timeout: 15000 });
+      const editor = await require('../composer-ready').waitForComposerReady(page, { platform: 'x' });
       await writeComposerText(page, editor, text);
       const root = '[role="dialog"]';
       const input = await page.$(`${root} input[data-testid="fileInput"], ${root} input[type="file"][accept*="image"]`);
@@ -39,7 +39,7 @@ class XPoster {
         const add = await page.$(`${root} button[data-testid="addButton"]`);
         if (!add) throw new Error('X Add post button unavailable; submission blocked');
         await add.click();
-        replyEditor = await page.waitForSelector(`${root} [data-testid="tweetTextarea_1"][contenteditable="true"]`, { visible: true, timeout: 10000 });
+        replyEditor = await require('../composer-ready').waitForComposerReady(page, { platform: 'x', editorIndex: 1 });
         await writeComposerText(page, replyEditor, options.threadReply.trim());
       }
       await assertComposerText(page, editor, text);
