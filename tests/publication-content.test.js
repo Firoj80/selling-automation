@@ -35,3 +35,8 @@ test('unreadable engagement state blocks loading instead of silently resetting a
 test('promotion mode reports selling enabled and counts promoted publications as product posts',()=>{
  const {ContentTracker}=require('../src/content/content-tracker');const state={posts:[{platform:'threads',type:'value',publication:{type:'product'},status:'published',publishedAt:1,result:{verified:true,postUrl:'https://www.threads.com/@seller/post/ABC'}}]};const tracker=new ContentTracker({product:base,state});assert.equal(tracker.getProductMentionRatio('threads').productPosts,1);assert.equal(tracker.shouldPublishProductForPlatform('threads'),true);assert.equal(tracker.getSellingStatus().threads.publishedValuePosts,0);
 });
+
+test('promotion mode sends due content without waiting on historical metrics',async()=>{
+ const {ContentScheduler}=require('../src/content/content-scheduler');const state={posts:[{id:'due',platform:'facebook',type:'value',manuallyEdited:true,status:'pending',text:'Check the largest folders before deleting files.'}],createdAt:0,nextPostAt:0,learning:{nextMetricsAt:0,endAt:99999999}};
+ const product={...base,schedule:{mode:'interval'}};const scheduler=new ContentScheduler({product,state,now:()=>1000,persist:()=>{},tracker:{refresh:()=>assert.fail('Historical metrics must not block due promotion'),shouldPublishProductForPlatform:()=>true},publish:async()=>({success:true,verified:true})});assert.equal((await scheduler.tick({dryRun:false})).status,'published');
+});

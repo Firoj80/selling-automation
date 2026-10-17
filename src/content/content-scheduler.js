@@ -22,7 +22,7 @@ class ContentScheduler {
     if (uncertain) throw new Error(`Post ${uncertain.id} has status ${uncertain.status}; reconcile the platform result before retrying. Run node threads-agent.js recover --inspect.`);
     if (!dryRun) this.initCatchup();
     const learning = this.state.learning;
-    if (learning && !dryRun && this.tracker && this.now() >= (learning.nextMetricsAt || 0)) {
+    if (!this.product.publishing?.promote_every_post && learning && !dryRun && this.tracker && this.now() >= (learning.nextMetricsAt || 0)) {
       await this.tracker.refresh(); learning.nextMetricsAt = this.now() + 15 * 60000; this.commit();
     }
     let post = this.selectPost();
@@ -51,7 +51,8 @@ class ContentScheduler {
       const plannedType = this.product.publishing?.promote_every_post ? 'product' : post.type === 'product' && !eligible ? post.valueText && !post.manuallyEdited ? 'value' : 'held' : eligible && !post.manuallyEdited ? 'product' : post.type;
       return { status: 'preview', post, nextPostAt: due, expiredSlot: !timing.isInterval(this.product) && !!learning && this.now() > due + learning.settings.slot_grace_minutes * 60000, plannedType, engagement: this.tracker?.summary() };
     }
-    if (this.tracker) await this.tracker.refresh();
+    // Promotion on every post has no view gate. Historical metrics must not delay due sends.
+    if (this.tracker && !this.product.publishing?.promote_every_post) await this.tracker.refresh();
     // Enforce spacing using actual publication times, including after a slow browser action.
     if (learning && !timing.isInterval(this.product)) {
       const policy = schedulePolicy(this.product, this.state);
