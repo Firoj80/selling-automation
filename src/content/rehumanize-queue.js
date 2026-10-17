@@ -45,7 +45,7 @@ async function rehumanize(root, args, { ai, onProgress = event => console.log(`[
       state.writing = writing;
       // Update the writing revision only; product fact review remains mandatory.
       if (state.configRevisions) state.configRevisions.writing = revisions(product, copy).writing;
-      if (path.basename(file) === 'product-content.json') syncQueue(state);
+      if (path.basename(file) === 'product-content.json') syncQueue(state, product);
       save(file, state); // Commit each edit before starting the next AI call.
       onProgress({ id: post.id, stage: 'saved', completed: index + 1, total: posts.length, ready, needsEdit });
     }

@@ -21,6 +21,8 @@ class XPoster {
     if ((options.dryRun ?? CONFIG.DRY_RUN) || !(options.postingEnabled ?? CONFIG.POSTING_ENABLED)) return { success: true, simulated: true, postId, text, threadReply: options.threadReply || null, mediaCount: options.mediaPaths.length, verifiedMediaCount: options.mediaPaths.length };
     let submitted = false;
     try {
+      const { product } = require('../../content/product-config').loadProduct(CONFIG.ROOT_DIR);
+      if (!require('../../content/publishing-settings').publishingEnabled(product, 'x')) throw new Error('X publishing is disabled in product settings');
       if (CONFIG.APPROVAL_MODE) throw new Error('Approval mode prevents live publication');
       const username = options.username?.replace(/^@/, '');
       if (!username || !/^[\w]+$/.test(username)) throw new Error('A configured X username is required');

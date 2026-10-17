@@ -27,13 +27,15 @@ Set `strategy.platforms` to `["x", "threads", "facebook", "instagram"]` and conf
 
 Engagement supports Threads and Facebook public discussions and existing incoming Threads DM conversations. It does not initiate cold DMs. Optional initial research supports Threads and Facebook. Target-account style analysis supports X and Threads. These capabilities are separate from four-platform publishing.
 
+Pause a publisher without removing its feature or saved drafts using `publishing.disabled_platforms` in `product.json`, for example `{"disabled_platforms":["x"]}` under `publishing`. Paused platforms are excluded from scheduling, live publication, connectivity checks and rolling preparation. Set the list back to `[]` to resume all configured publishers. Change cadence with `node threads-agent.js settings set strategy.post_frequency_hours 1` for hourly posting.
+
 ## Content lifecycle
 
 Setup checkpoints drafts in `private/product-generation.json` and creates `private/product-content.json` after preparation. Humanizer editing and validation hold failed drafts for review. Media is associated with the caption hash; changed captions require compatible images.
 
 Interval scheduling measures cadence separately per platform from its last verified publication. Restarts resume the queue without a burst for missed intervals. Calendar scheduling supports local times and timezones. Saved product settings determine cadence and pilot quantities.
 
-The live runtime checks connectivity about every 15 seconds and pauses publishing, engagement and preparation while the configured platforms are unreachable. On reconnect or restart, each overdue platform publishes one ready post in sequence, before learning and engagement. Remaining posts are rescheduled from that platform's verified publication time (two hours with the current configuration). Platforms still within their interval keep waiting; manually postponed drafts stay postponed. Uncertain submissions still require reconciliation.
+The live runtime checks connectivity about every 15 seconds and pauses publishing, engagement and preparation while the active publishing platforms are unreachable. On reconnect or restart, each overdue platform publishes one ready post in sequence, before learning and engagement. Remaining posts are rescheduled from that platform's verified publication time using `strategy.post_frequency_hours`. Platforms still within their interval keep waiting; manually postponed drafts stay postponed. Uncertain submissions still require reconciliation.
 
 All four publishers wait for an editable, unobstructed composer with stable layout before typing or attaching media. Instagram's image-selection screen and full-page caption editor are supported separately. Startup automatically archives a stale lock only after verifying that its process has stopped; it never resets uncertain publications.
 

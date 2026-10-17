@@ -6,10 +6,10 @@ class ContentScheduler {
     if (!Array.isArray(state.posts) || !Number.isFinite(state.nextPostAt)) throw new Error('Invalid content state');
     Object.assign(this, { product, state, persist, publish, tracker, engine, planner, copy, mediaRoot, now });
   }
-  selectPost() { return timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.post || null : pendingPosts(this.state)[0] || null; }
+  selectPost() { return timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.post || null : pendingPosts(this.state).find(p => require('./publishing-settings').publishingEnabled(this.product, p.platform)) || null; }
   getNextPlatform() { return this.selectPost()?.platform || null; }
   getNextPostTime() { return new Date(timing.isInterval(this.product) ? timing.candidates(this.state, this.product)[0]?.due ?? this.state.nextPostAt : this.selectPost()?.scheduledAt ?? this.state.nextPostAt); }
-  commit() { if (timing.isInterval(this.product)) timing.projectQueue(this.state, this.product, this.now()); syncQueue(this.state); this.persist(this.state); }
+  commit() { if (timing.isInterval(this.product)) timing.projectQueue(this.state, this.product, this.now()); syncQueue(this.state, this.product); this.persist(this.state); }
   initCatchup() {
     if (timing.isInterval(this.product)) return;
     if (!this.state.learning || !this.state.posts.some(p => p.status === 'pending' && Number.isFinite(p.scheduledAt) && p.scheduledAt + (this.state.learning.settings.slot_grace_minutes ?? 30) * 60000 <= this.now())) return;

@@ -13,6 +13,8 @@ async function probeConnectivity(platforms, { fetchImpl = globalThis.fetch, time
 class RuntimeConnectivity {
   constructor({ platforms, check = probeConnectivity, now = () => Date.now(), interval = 15000 } = {}) { Object.assign(this, { platforms, check, now, interval }); }
   async poll({ force = false } = {}) {
+    const platformKey = this.platforms.join('|');
+    if (this.platformKey !== platformKey) { force = true; this.platformKey = platformKey; }
     if (!force && this.snapshot && this.now() < this.nextCheckAt) return { ...this.snapshot, resumed: false, changed: false };
     const before = this.snapshot?.online;
     const result = await this.check(this.platforms);

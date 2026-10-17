@@ -3,9 +3,10 @@ const { assignments } = require('./content-planner');
 const { analyzeContent } = require('./content-analytics');
 const timing = require('./interval-schedule');
 const { syncQueue } = require('./content-queue');
+const { publishingEnabled } = require('./publishing-settings');
 class RollingContent {
   constructor({ product, copy, state, engine, media, externalLearning, persist, now = () => Date.now() }) { Object.assign(this, { product, copy, state, engine, media, externalLearning, persist, now }); }
-  commit() { if (timing.isInterval(this.product)) timing.projectQueue(this.state, this.product, this.now()); syncQueue(this.state); this.persist(this.state); }
+  commit() { if (timing.isInterval(this.product)) timing.projectQueue(this.state, this.product, this.now()); syncQueue(this.state, this.product); this.persist(this.state); }
   initialize() {
     if (!rollingSettings(this.product).enabled || this.state.rollingContent) return;
     this.state.rollingContent = { enabledAt: this.now(), baselineIds: this.state.posts.map(p => p.id), baselinePublishedIds: this.state.posts.filter(p => p.status === 'published').map(p => p.id), jobs: [] };
@@ -17,7 +18,7 @@ class RollingContent {
     if (!rollingSettings(this.product).enabled || !rolling) return;
     let changed = false;
     for (const post of this.state.posts) {
-      if (post.status !== 'published' || !post.result?.success || !post.result?.verified || post.result.simulated || rolling.baselinePublishedIds.includes(post.id) || rolling.jobs.some(j => j.triggerId === post.id) || !this.product.strategy.platforms.includes(post.platform)) continue;
+      if (post.status !== 'published' || !post.result?.success || !post.result?.verified || post.result.simulated || rolling.baselinePublishedIds.includes(post.id) || rolling.jobs.some(j => j.triggerId === post.id) || !publishingEnabled(this.product, post.platform)) continue;
       rolling.jobs.push({ triggerId: post.id, platform: post.platform, status: 'queued', attempts: 0, createdAt: this.now() }); changed = true;
     }
     if (changed) this.commit();
@@ -30,10 +31,10 @@ class RollingContent {
     if (this.now() >= timing.campaignEnd(this.product, this.state)) return { status: 'complete' };
     // Handle due posts first. Preparation runs only with at least five minutes free.
     if (timing.candidates(this.state, this.product).some(c => c.due <= this.now() + 5 * 60000)) return { status: 'waiting' };
-    const repair = this.state.posts.find(p => p.media?.required && !['published', 'publishing', 'needs_review', 'held', 'missed'].includes(p.status) && p.media.status !== 'text_only' && !require('./content-media').validMedia(p, this.media.root) && (p.media.attempts || 0) < mediaSettings(this.product).max_attempts && this.now() >= (p.media.nextAttemptAt || 0));
+    const repair = this.state.posts.find(p => publishingEnabled(this.product, p.platform) && p.media?.required && !['published', 'publishing', 'needs_review', 'held', 'missed'].includes(p.status) && p.media.status !== 'text_only' && !require('./content-media').validMedia(p, this.media.root) && (p.media.attempts || 0) < mediaSettings(this.product).max_attempts && this.now() >= (p.media.nextAttemptAt || 0));
     if (repair) { await this.media.prepare(repair, this.product, () => this.commit()); return { status: 'media_prepared', id: repair.id, media: repair.media.status }; }
     if (!rollingSettings(this.product).enabled) return { status: 'disabled' };
-    const job = this.state.rollingContent.jobs.find(j => ['queued', 'generating', 'error'].includes(j.status) && j.attempts < 3 && this.now() >= (j.nextAttemptAt || 0));
+    const job = this.state.rollingContent.jobs.find(j => publishingEnabled(this.product, j.platform) && ['queued', 'generating', 'error'].includes(j.status) && j.attempts < 3 && this.now() >= (j.nextAttemptAt || 0));
     if (!job) return { status: 'idle' };
     const cap = this.state.learning?.settings.max_campaign_posts || 180;
     if (this.state.posts.length >= cap) { job.status = 'capped'; this.commit(); return { status: 'complete', reason: 'Campaign post limit reached' }; }

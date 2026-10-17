@@ -29,7 +29,8 @@ Run from the project directory. Enable live publishing deliberately in `.env` af
 | Show settings | `node threads-agent.js settings show` |
 | Validate settings | `node threads-agent.js settings validate` |
 | Migrate older identity | `node threads-agent.js settings migrate` |
-| Change cadence | `node threads-agent.js settings set strategy.post_frequency_hours 2` |
+| Change cadence to hourly | `node threads-agent.js settings set strategy.post_frequency_hours 1` |
+| Resume paused publishers | `node threads-agent.js settings set publishing.disabled_platforms []` |
 | Set checkout URL | `node threads-agent.js set-url https://your-sales-link.example/` |
 | Inspect uncertain state | `node threads-agent.js recover --inspect` |
 | Confirm published result | `node threads-agent.js recover --reconcile ID --published URL` |

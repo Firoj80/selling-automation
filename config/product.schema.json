@@ -599,6 +599,25 @@
           "pattern": "^@?\\S+$"
         }
       }
+    },
+    "publishing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disabled_platforms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "threads",
+              "facebook",
+              "x",
+              "instagram"
+            ]
+          },
+          "default": []
+        }
+      }
     }
   }
 }

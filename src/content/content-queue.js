@@ -6,8 +6,8 @@ const timing = require('./interval-schedule');
 function pendingPosts(state) {
   return state.posts.filter(p => p.status === 'pending').sort((a, b) => (a.scheduledAt ?? state.nextPostAt) - (b.scheduledAt ?? state.nextPostAt) || state.posts.indexOf(a) - state.posts.indexOf(b));
 }
-function syncQueue(state) {
-  const next = pendingPosts(state)[0];
+function syncQueue(state, product = null) {
+  const next = pendingPosts(state).find(post => !product || require('./publishing-settings').publishingEnabled(product, post.platform));
   const uncertain = state.posts.find(p => ['publishing', 'needs_review'].includes(p.status));
   state.cursor = uncertain ? state.posts.indexOf(uncertain) : next ? state.posts.indexOf(next) : state.posts.length; // Compatibility projection only.
   if (next && Number.isFinite(next.scheduledAt)) state.nextPostAt = next.scheduledAt;
@@ -195,7 +195,7 @@ function changeQueue(state, product, operation, now = Date.now()) {
       }
     }
   } else throw new Error('Unsupported queue operation');
-  syncQueue(next);
+  syncQueue(next, product);
   return { state: next, changes };
 }
 module.exports = { pendingPosts, syncQueue, schedulePolicy, changeQueue, timestamp };

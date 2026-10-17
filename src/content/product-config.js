@@ -56,6 +56,7 @@ function validateProduct(input) {
   require('../knowledge/content-observer').observerSettings(data);
   require('./media-settings').mediaSettings(data);
   require('./media-settings').rollingSettings(data);
+  require('./publishing-settings').disabledPlatforms(data);
   return data;
 }
 function loadProduct(root) {

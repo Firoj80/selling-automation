@@ -14,6 +14,7 @@ const { ContentObserver, observerSettings } = require('../knowledge/content-obse
 const { LearningEngine } = require('../knowledge/learning-engine');
 const management = require('./config-management');
 async function publish(post, product) {
+  if (!require('./publishing-settings').publishingEnabled(product, post.platform)) throw new Error(`Publishing is disabled for ${post.platform}`);
   let postToPublish = { ...post };
   if (['threads', 'x'].includes(postToPublish.platform) && postToPublish.type === 'product') {
     if (!postToPublish.threadReply) {
@@ -223,11 +224,11 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
     let stopped = false;
     let wake;
     const pause = ms => new Promise(resolve => { const timer = setTimeout(resolve, ms); wake = () => { clearTimeout(timer); resolve(); }; });
-    const connectivity = dryRun ? null : runtime.connectivity || new (require('./runtime-connectivity').RuntimeConnectivity)({ platforms: product.strategy.platforms });
+    const connectivity = dryRun ? null : runtime.connectivity || new (require('./runtime-connectivity').RuntimeConnectivity)({ platforms: require('./publishing-settings').activePlatforms(product) });
     const stop = () => { stopped = true; if (wake) wake(); };
     process.on('SIGINT', stop);
     process.on('SIGTERM', stop);
-    console.log(`Content mode: ${product.product.name}; ${product.strategy.platforms.join(', ')}; ${dryRun ? 'PREVIEW' : 'LIVE'}.`);
+    console.log(`Content mode: ${product.product.name}; publishing: ${require('./publishing-settings').activePlatforms(product).join(', ') || 'paused'}; disabled: ${require('./publishing-settings').disabledPlatforms(product).join(', ') || 'none'}; ${dryRun ? 'PREVIEW' : 'LIVE'}.`);
     console.log(JSON.stringify({ selling: tracker.getSellingStatus() }));
     try {
       if (approvalArg) {
@@ -242,20 +243,6 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
       let lastHeldMessage;
       
       while (!stopped) {
-        if (connectivity) {
-          const network = await connectivity.poll();
-          if (!network.online) {
-            if (network.changed) console.log('[Connectivity] Offline; publication, engagement and AI preparation paused. Pending posts are preserved.');
-            if (args.includes('--once')) { console.log(JSON.stringify({ status: 'offline', platforms: network.platforms })); break; }
-            await pause(1000); wake = null;
-            continue;
-          }
-          if (stopped) break;
-          if (network.changed && !engagementOnly) {
-            const resumed = require('./interval-schedule').resumeIntervalQueue(state, product, Date.now());
-            if (resumed.status !== 'unchanged') { scheduler.commit(); console.log('[Schedule] ' + JSON.stringify(resumed)); }
-          }
-        }
         if (rolling) media.poll(state, () => scheduler.commit());
         if (!dryRun) {
           const changes = management.processChanges(root);
@@ -269,6 +256,21 @@ async function run(command, args = [], root = path.resolve(__dirname, '../..'), 
             if (engagement) engagement.engine.writing = latestWriting;
           }
           for (const change of require('./queue-management').processQueueRequests(root, state)) console.log(JSON.stringify({ queue: change }));
+        }
+        if (connectivity) {
+          connectivity.platforms = require('./publishing-settings').activePlatforms(product);
+          const network = await connectivity.poll();
+          if (!network.online) {
+            if (network.changed) console.log('[Connectivity] Offline; publication, engagement and AI preparation paused. Pending posts are preserved.');
+            if (args.includes('--once')) { console.log(JSON.stringify({ status: 'offline', platforms: network.platforms })); break; }
+            await pause(1000); wake = null;
+            continue;
+          }
+          if (stopped) break;
+          if (network.changed && !engagementOnly) {
+            const resumed = require('./interval-schedule').resumeIntervalQueue(state, product, Date.now());
+            if (resumed.status !== 'unchanged') { scheduler.commit(); console.log('[Schedule] ' + JSON.stringify(resumed)); }
+          }
         }
         // Synthesize during idle time or before replenishment; never ahead of a due post.
         if (!dryRun && externalLearning && (engagementOnly || !require('./interval-schedule').hasDuePosts(state, product, Date.now())) && (engagementOnly || !state.posts.some(p => p.status === 'pending') || state.nextPostAt > Date.now() + 5 * 60000)) {
